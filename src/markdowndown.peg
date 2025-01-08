@@ -1,37 +1,107 @@
-%prefix "calc"
+# MarkdownDownInternal.
+%prefix "mddi"
 
+# Copied verbatim to the C header file before the generated parser implementation code.
+%header {
+#include "data.h"
+
+#define PCC_AST_MANAGER_CUSTOM_DATA_DEFINED
+typedef mdd_data_t pcc_ast_manager_custom_data_t;
+
+#define PCC_AST_NODE_CUSTOM_DATA_DEFINED
+typedef mdd_node_data_t pcc_ast_node_custom_data_t;
+}
+
+%import "code/pcc_ast.peg"
+
+# Output data type as `$$`.
+%value "pcc_ast_node_t *"
+# User-defined data type passed to `pcc_create`.
+%auxil "pcc_ast_manager_t *"
+
+# Copied verbatim to the C source file before the generated parser implementation code.
 %source {
 #include <stdio.h>
 #include <stdlib.h>
+
+#include "utils.h"
+
+// Get a character from the input.
+#define PCC_GETCHAR(auxil) mdd_get_char_from_data(&auxil->custom)
+
+static const char *dbg_str[] = { "Evaluating rule", "Matched rule", "Abandoning rule" };
+#define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) \
+    fprintf(stderr, "%*s%s %s @%zu [%.*s]\n", (int)((level) * 2), "", dbg_str[event], rule, pos, (int)(length), buffer)
 }
 
-statement <- _ e:expression _ EOL { printf("answer=%d\n", e); }
-           / ( !EOL . )* EOL      { printf("error\n"); }
+######
 
-expression <- e:term { $$ = e; }
+document <-
+    l:front_matter? r:block_list? end_of_file
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_DOCUMENT, $0s, $0e);
+        if (l) {
+            mdd_node_append_child($$, l);
+        }
+        if (r) {
+            mdd_node_append_child($$, r);
+        }
+    }
 
-term <- l:term _ '+' _ r:factor { $$ = l + r; }
-      / l:term _ '-' _ r:factor { $$ = l - r; }
-      / e:factor                { $$ = e; }
+front_matter <-
+    '---' end_of_line front_matter_body? '---' end_of_line
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_FRONT_MATTER, $0s, $0e);
+    }
 
-factor <- l:factor _ '*' _ r:unary { $$ = l * r; }
-        / l:factor _ '/' _ r:unary { $$ = l / r; }
-        / e:unary                  { $$ = e; }
+front_matter_body <- ((!'---' !end_of_line .)* end_of_line)+
 
-unary <- '+' _ e:unary { $$ = +e; }
-       / '-' _ e:unary { $$ = -e; }
-       / e:primary     { $$ = e; }
+block_list <-
+    l:block_list r:block
+    {
+        $$ = l;
+        mdd_node_append_child($$, r);
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+    / e:block
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_BLOCK_LIST, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
 
-primary <- < [0-9]+ >               { $$ = atoi($1); }
-         / '(' _ e:expression _ ')' { $$ = e; }
+block <-
+    (!end_of_line .)* end_of_line
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_BLOCK, $0s, $0e);
+    }
+    / (!end_of_line !end_of_file .)+ end_of_file
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_BLOCK, $0s, $0e);
+    }
 
-_      <- [ \t]*
-EOL    <- '\n' / '\r\n' / '\r' / ';'
+end_of_line <- '\r\n' / '\n' / '\r'
 
+end_of_file <- !.
+
+######
+
+%import "char/ascii_character_group.peg"
+
+# End of the rules. All codes below will be copied to the C source file.
 %%
-int main() {
-    calc_context_t *ctx = calc_create(NULL);
-    while (calc_parse(ctx, NULL));
-    calc_destroy(ctx);
-    return 0;
+
+void pcc_ast_manager_custom_data__initialize(pcc_ast_manager_custom_data_t *obj) {
+    mdd_data_on_initialize(obj);
+}
+
+void pcc_ast_manager_custom_data__finalize(pcc_ast_manager_custom_data_t *obj) {
+    mdd_data_on_finalize(obj);
+}
+
+void pcc_ast_node_custom_data__initialize(pcc_ast_node_custom_data_t *obj) {
+    mdd_node_data_on_initialize(obj);
+}
+
+void pcc_ast_node_custom_data__finalize(pcc_ast_node_custom_data_t *obj) {
+    mdd_node_data_on_finalize(obj);
 }
