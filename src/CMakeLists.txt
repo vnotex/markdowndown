@@ -1,7 +1,10 @@
 option(MDD_GENERATE_PEG "Generate C files from PEG file" ON)
+option(MDD_PACKCC_BIN_DIR "PackCC executable file directory" "")
 
 if(MDD_GENERATE_PEG)
-    find_program(PACKCC_EXECUTABLE packcc DOC "Path to the packcc utility" REQUIRED)
+    message(STATUS "MDD_PACKCC_BIN_DIR=${MDD_PACKCC_BIN_DIR}")
+    find_program(PACKCC_EXECUTABLE packcc DOC "Path to the packcc utility"
+        HINTS ${MDD_PACKCC_BIN_DIR} REQUIRED)
     get_filename_component(PACKCC_BIN_DIR "${PACKCC_EXECUTABLE}" DIRECTORY)
     set(PACKCC_IMPORT_DIR "${PACKCC_BIN_DIR}/../import")
     cmake_path(NORMAL_PATH PACKCC_IMPORT_DIR OUTPUT_VARIABLE PACKCC_IMPORT_DIR)
