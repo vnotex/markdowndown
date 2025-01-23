@@ -10,14 +10,56 @@ add_executable(test_front_matter
     test_utils.h test_utils.c)
 target_link_libraries(test_front_matter PRIVATE markdowndown)
 
-add_executable(test_block_list
-    test_block_list.c
+add_executable(test_blank_line
+    test_blank_line.c
     test_utils.h test_utils.c)
-target_link_libraries(test_block_list PRIVATE markdowndown)
+target_link_libraries(test_blank_line PRIVATE markdowndown)
+
+add_executable(test_verbatim
+    test_verbatim.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_verbatim PRIVATE markdowndown)
+
+add_executable(test_plain
+    test_plain.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_plain PRIVATE markdowndown)
+
+add_executable(test_strong
+    test_strong.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_strong PRIVATE markdowndown)
+
+add_executable(test_emph
+    test_emph.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_emph PRIVATE markdowndown)
+
+add_executable(test_strike
+    test_strike.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_strike PRIVATE markdowndown)
+
+add_executable(test_image
+    test_image.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_image PRIVATE markdowndown)
 
 add_test(NAME test_document
     COMMAND $<TARGET_FILE:test_document>)
 add_test(NAME test_front_matter
     COMMAND $<TARGET_FILE:test_front_matter>)
-add_test(NAME test_block_list
-    COMMAND $<TARGET_FILE:test_block_list>)
+add_test(NAME test_blank_line
+    COMMAND $<TARGET_FILE:test_blank_line>)
+add_test(NAME test_verbatim
+    COMMAND $<TARGET_FILE:test_verbatim>)
+add_test(NAME test_plain
+    COMMAND $<TARGET_FILE:test_plain>)
+add_test(NAME test_strong
+    COMMAND $<TARGET_FILE:test_strong>)
+add_test(NAME test_emph
+    COMMAND $<TARGET_FILE:test_emph>)
+add_test(NAME test_strike
+    COMMAND $<TARGET_FILE:test_strike>)
+add_test(NAME test_image
+    COMMAND $<TARGET_FILE:test_image>)

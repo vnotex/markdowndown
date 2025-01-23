@@ -117,11 +117,11 @@ int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
 
 #define BUF_LEN 4096u
 
-int test_ast_0(const char *input, const char *expected_ast) {
-    return test_ast((const unsigned char *)input, strlen(input), expected_ast);
+int test_ast(const char *input, const char *expected_ast) {
+    return test_ast_0((const unsigned char *)input, strlen(input), expected_ast);
 }
 
-int test_ast(const unsigned char *input, size_t len, const char *expected_ast) {
+int test_ast_0(const unsigned char *input, size_t len, const char *expected_ast) {
     int passed = 0;
     char buffer[BUF_LEN + 1] = { 0 };
     pcc_ast_manager_t mgr;

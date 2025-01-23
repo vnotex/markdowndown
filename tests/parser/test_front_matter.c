@@ -15,16 +15,13 @@ int main() {
         "var: Document[0,37)\n"
         "  nul: FrontMatter[0,37)\n");
 
-    // Front matter + blocks.
+    // No blocks, UTF8.
     TEST_AST("---\n"
         "title: vnote docs\n"
-        "type: tech\n"
-        "---\n"
-        "body\n",
-        "var: Document[0,42)\n"
-        "  nul: FrontMatter[0,37)\n"
-        "  var: BlockList[37,42)\n"
-        "    nul: Block[37,42)\n");
+        "type: 技术\n"
+        "---\n",
+        "var: Document[0,39)\n"
+        "  nul: FrontMatter[0,39)\n");
 
     return 0;
 }

@@ -1,8 +1,6 @@
 #ifndef DATA_H
 #define DATA_H
 
-#include <stdio.h>
-
 typedef struct range_tag {
     size_t start;
     size_t end;
@@ -28,7 +26,18 @@ typedef enum mdd_node_type_tag {
     MDD_NODE_TYPE_DOCUMENT,
     MDD_NODE_TYPE_FRONT_MATTER,
     MDD_NODE_TYPE_BLOCK_LIST,
-    MDD_NODE_TYPE_BLOCK,
+    MDD_NODE_TYPE_BLANK_LINE,
+    MDD_NODE_TYPE_VERBATIM,
+    MDD_NODE_TYPE_PLAIN,
+    MDD_NODE_TYPE_INLINES,
+    MDD_NODE_TYPE_STRONG,
+    MDD_NODE_TYPE_EMPH,
+    MDD_NODE_TYPE_STRIKE,
+    MDD_NODE_TYPE_IMAGE,
+    MDD_NODE_TYPE_HTML,
+    MDD_NODE_TYPE_ENTITY,
+    MDD_NODE_TYPE_LABEL,
+    MDD_NODE_TYPE_LINK,
     MDD_NODE_TYPE_H1,
     MDD_NODE_TYPE_H2,
 } mdd_node_type_t;
@@ -53,7 +62,6 @@ inline static int mdd_get_char_from_data(mdd_data_t *data) {
     int ret = -1;
     if (data->cur < data->len) {
         ret = (int)data->input[data->cur];
-        printf("mdd read idx=%llu char=%d\n", data->cur, ret);
         ++data->cur;
     }
     return ret;

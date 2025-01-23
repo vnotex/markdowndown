@@ -29,32 +29,32 @@ typedef mdd_node_data_t pcc_ast_node_custom_data_t;
 // Get a character from the input.
 #define PCC_GETCHAR(auxil) mdd_get_char_from_data(&auxil->custom)
 
-static const char *dbg_str[] = { "Evaluating rule", "Matched rule", "Abandoning rule" };
+static const char *dbg_str[] = { "Evaluating", "Matched", "Abandoned" };
 #define PCC_DEBUG(auxil, event, rule, level, pos, buffer, length) \
-    fprintf(stderr, "%*s%s %s @%zu [%.*s]\n", (int)((level) * 2), "", dbg_str[event], rule, pos, (int)(length), buffer)
+    do {\
+        if (event == 2) {\
+            fprintf(stderr, "%*s%s %s\n", (int)((level) * 2), "", dbg_str[event], rule); \
+        } else {\
+            fprintf(stderr, "%*s%s %s @(%zu,%zu)\n", (int)((level) * 2), "", dbg_str[event], rule, pos, length); \
+        }\
+    } while (0)
 }
 
 ######
 
-document <-
-    l:front_matter? r:block_list? end_of_file
+document <- l:front_matter? r:block_list? end_of_file
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_DOCUMENT, $0s, $0e);
-        if (l) {
-            mdd_node_append_child($$, l);
-        }
-        if (r) {
-            mdd_node_append_child($$, r);
-        }
+        mdd_node_append_child($$, l);
+        mdd_node_append_child($$, r);
     }
 
-front_matter <-
-    '---' end_of_line front_matter_body? '---' end_of_line
+front_matter <- '---' new_line front_matter_body? '---' new_line
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_FRONT_MATTER, $0s, $0e);
     }
 
-front_matter_body <- ((!'---' !end_of_line .)* end_of_line)+
+front_matter_body <- ((!'---' !new_line .)* new_line)+
 
 block_list <-
     l:block_list r:block
@@ -70,22 +70,243 @@ block_list <-
     }
 
 block <-
-    (!end_of_line .)* end_of_line
+    blank_line+
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_BLOCK, $0s, $0e);
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (!end_of_line !end_of_file .)+ end_of_file
+    / (e:verbatim / e:plain)
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_BLOCK, $0s, $0e);
+        $$ = e;
     }
 
-end_of_line <- '\r\n' / '\n' / '\r'
+verbatim <- nonblank_indented_line+
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_VERBATIM, $0s, $0e);
+    }
+
+plain <- e:inlines end_line?
+    {
+        $$ = e;
+        mdd_node_data_assign(&$$->custom, MDD_NODE_TYPE_PLAIN, $0s, $0e);
+    }
+
+inlines <-
+    l:inlines r:inline_or_end_line
+    {
+        $$ = l;
+        mdd_node_append_child($$, r);
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+    / e:inline_or_end_line
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_INLINES, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
+
+inline_or_end_line <-
+    !end_line e:inline
+    {
+        $$ = e;
+    }
+    / end_line &inline
+
+inline <-
+    (str
+     / end_line
+     / ul_or_star_line
+     / spaces
+     / e:strong
+     / e:emph
+     / e:strike
+     / e:image
+     / special_char
+    )
+    {
+        $$ = e;
+    }
+
+image <- '!' (e:explicit_link / e:explicit_link_size)
+    {
+        $$ = mdd_node_create_1(MDD_NODE_TYPE_IMAGE, $0s, $0e, e);
+    }
+
+explicit_link_size <- l:label '(' space s:source space_newline t:title? space i:image_size? space ')'
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK, $0s, $0e);
+        mdd_node_append_child($$, l);
+        mdd_node_append_child($$, s);
+        mdd_node_append_child($$, t);
+        mdd_node_append_child($$, i);
+    }
+
+image_size <- image_size_complete / image_size_width / image_size_height
+
+image_size_complete <- '=' [0-9]+ 'x' [0-9]+
+image_size_width <- '=' [0-9]+ 'x'
+image_size_height <- '=x' [0-9]+
+
+explicit_link <- l:label '(' space s:source space_newline t:title? space ')'
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK, $0s, $0e);
+        mdd_node_append_child($$, l);
+        mdd_node_append_child($$, s);
+        mdd_node_append_child($$, t);
+    }
+
+source <- '<' source_contents '>'
+    / source_contents
+
+source_contents <- ((!'(' !')' !'>' nonspace_char)+ / '(' source_contents ')')*
+
+title <- title_single / title_double
+
+title_single <- '\'' (!('\'' / new_line) .)* '\''
+
+title_double <- '"' (!('"' / new_line) .)* '"'
+
+label <- '[' (!']' !'[' e:label_inline)* ']'
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LABEL, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
+
+label_inline <-
+    (str
+    / end_line
+    / space
+    / e:raw_html
+    / e:entity
+    / escaped_char
+    / special_char)
+    {
+        $$ = e;
+    }
+
+escaped_char <- '\\' !new_line ([-\\`~|*_{}[\]()#+.!><] / special_char_ext)
+
+hex_entity <- '&' '#' [Xx] [0-9a-fA-F]+ ';'
+dec_entity <- '&' '#' [0-9]+ ';'
+char_entity <- '&' [A-Za-z0-9]+ ';'
+
+entity <- (hex_entity / dec_entity / char_entity)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_ENTITY, $0s, $0e);
+    }
+
+raw_html <- (html_comment / html_block_script / html_tag)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_HTML, $0s, $0e);
+    }
+
+html_comment <- '<!--' (!'-->' .)* '-->'
+
+html_tag <- '<' space_newline '/'? alphanumeric_ascii+ space_newline html_attribute* '/'? space_newline '>'
+
+strike <- '~~' !whitespace (!'~~' inline)+ '~~'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRIKE, $0s, $0e);
+    }
+
+strong <- (e:strong_star / e:strong_ul)
+    {
+        $$ = e;
+    }
+
+strong_star <- '**' !whitespace (!'**' inline)+ '**'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
+    }
+
+strong_ul <- '__' !whitespace (!'__' inline)+ '__'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
+    }
+
+emph <- (e:emph_star / e:emph_ul)
+    {
+        $$ = e;
+    }
+
+emph_star <- '*' !whitespace (!'*' inline / e:strong_star)+ '*'
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
+
+emph_ul <- '_' !whitespace (!'_' inline / e:strong_ul)+ '_'
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
+
+ul_or_star_line <- ul_line / star_line
+
+ul_line <- '____' '_'* / space_char '_'+ &space_char
+
+star_line <- '****' '*'* / space_char '*'+ &space_char
+
+str <- normal_char (normal_char / '_'+ &alphanumeric)*
+
+normal_char <- !(special_char / space_char / new_line ) .
+
+special_char <- '~' / '*' / '_' / '`' / '&' / '[' / ']' / '(' / ')' / '<' / '!' / '#' / '\\' / '\'' / '"' / special_char_ext
+
+special_char_ext <- '^' / '$' / '|'
+
+alphanumeric <- ASCII_C_alnum / Unicode_Letter / Unicode_Number
+
+alphanumeric_ascii <- ASCII_C_alnum
+
+space_char <- ' ' / '\t'
+
+nonspace_char <- !space_char !new_line .
+
+space <- space_char*
+
+space_newline <- space (new_line space)?
+
+spaces <- space_char+
+
+blank_line <- space new_line
+
+line <-
+    (!'\r' !'\n' .)* new_line
+    / .+ end_of_file
+
+indent <- '\t' / '    '
+
+indented_line <- indent line
+
+nonblank_indented_line <- !blank_line indented_line
+
+end_line <- line_break / terminal_end_line / normal_end_line
+
+line_break <- '  ' normal_end_line
+
+normal_end_line <- space new_line !blank_line !'>'
+    !(line ('='+ / '-'+) new_line)
+
+terminal_end_line <- space new_line end_of_file
+
+whitespace <- space_char / new_line
+
+new_line <- '\r\n' / '\n' / '\r'
 
 end_of_file <- !.
+
+quoted <- '"' (!'"' .)* '"' / '\'' (!'\'' .)* '\''
+
+html_attribute <- (alphanumeric_ascii / '-')+ space_newline ('=' space_newline (quoted / (!'>' nonspace_char)+))? space_newline
+
+# Block-Level HTML content.
+html_block_script_open <- '<' space_newline ('script' / 'SCRIPT') space_newline html_attribute* '>'
+html_block_script_close <- '<' space_newline '/' ('script' / 'SCRIPT') space_newline '>'
+html_block_script <- html_block_script_open (!html_block_script_close .)* html_block_script_close
 
 ######
 
 %import "char/ascii_character_group.peg"
+%import "unicode_general_category_fix.peg"
 
 # End of the rules. All codes below will be copied to the C source file.
 %%

@@ -26,7 +26,18 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_DOCUMENT: return "Document";
     case MDD_NODE_TYPE_FRONT_MATTER: return "FrontMatter";
     case MDD_NODE_TYPE_BLOCK_LIST: return "BlockList";
-    case MDD_NODE_TYPE_BLOCK: return "Block";
+    case MDD_NODE_TYPE_BLANK_LINE: return "BlankLine";
+    case MDD_NODE_TYPE_VERBATIM: return "Verbatim";
+    case MDD_NODE_TYPE_PLAIN: return "Plain";
+    case MDD_NODE_TYPE_INLINES: return "Inlines";
+    case MDD_NODE_TYPE_STRONG: return "Strong";
+    case MDD_NODE_TYPE_EMPH: return "Emph";
+    case MDD_NODE_TYPE_STRIKE: return "Strike";
+    case MDD_NODE_TYPE_IMAGE: return "Image";
+    case MDD_NODE_TYPE_HTML: return "HTML";
+    case MDD_NODE_TYPE_ENTITY: return "Entity";
+    case MDD_NODE_TYPE_LABEL: return "Label";
+    case MDD_NODE_TYPE_LINK: return "Link";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";
     }
