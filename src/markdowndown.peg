@@ -74,7 +74,7 @@ block <-
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (e:verbatim / e:plain)
+    / (e:verbatim / e:reference / e:plain)
     {
         $$ = e;
     }
@@ -83,6 +83,41 @@ verbatim <- nonblank_indented_line+
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_VERBATIM, $0s, $0e);
     }
+
+reference <- nonindent_space !'[]' l:label ':' space_newline s:reference_source space_newline t:reference_title? blank_line+
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_REFERENCE, $0s, $0e);
+        mdd_node_append_child($$, l);
+        mdd_node_append_child($$, s);
+        mdd_node_append_child($$, t);
+        mdd_node_type_label_data_t *id = mdd_node_type_data_get_label(l);
+        mdd_node_type_label_data_t *source = mdd_node_type_data_get_label(s);
+        mdd_node_type_label_data_t *title = mdd_node_type_data_get_label(t);
+        mdd_node_type_reference_data_new(&$$->custom,
+            id ? &id->text : NULL,
+            source ? &source->text : NULL,
+            title ? &title->text : NULL);
+        mdd_pointer_array_add(&auxil->custom.references, $$);
+    }
+
+reference_source <- nonspace_char+
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SOURCE, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $0);
+    }
+
+reference_title <- (reference_title_single / reference_title_double / reference_title_parens)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_TITLE, $0s, $0e);
+        // Exclude the quotes.
+        mdd_node_type_label_data_new1(&$$->custom, $0 + 1, strlen($0) - 2);
+    }
+
+reference_title_single <- '\'' (!('\'' space new_line / new_line) .)* '\''
+
+reference_title_double <- '"' (!('"' space new_line / new_line) .)* '"'
+
+reference_title_parens <- '(' (!(')' space new_line / new_line) .)* ')'
 
 plain <- e:inlines end_line?
     {
@@ -125,25 +160,95 @@ inline <-
         $$ = e;
     }
 
-image <- '!' (e:explicit_link / e:explicit_link_size)
+image <- '!' (e:explicit_link / e:explicit_link_size / e:reference_link)
     {
-        $$ = mdd_node_create_1(MDD_NODE_TYPE_IMAGE, $0s, $0e, e);
+        assert(e);
+        assert(e->type == PCC_AST_NODE_TYPE_VARIADIC);
+        $$ = e;
+        mdd_node_data_assign(&$$->custom, MDD_NODE_TYPE_IMAGE, $0s, $0e);
     }
 
-explicit_link_size <- l:label '(' space s:source space_newline t:title? space i:image_size? space ')'
+reference_link <- (e:reference_link_double / e:reference_link_single)
+    {
+        $$ = e;
+        mdd_pointer_array_add(&auxil->custom.reference_links, $$);
+    }
+
+reference_link_double <- l:label space_newline !'[]' r:label
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK, $0s, $0e);
+        mdd_node_append_child($$, l);
+        if (r) {
+            mdd_node_data_set_type(&r->custom, MDD_NODE_TYPE_LINK_REFERENCE);
+        }
+        mdd_node_append_child($$, r);
+        mdd_node_type_label_data_t *label = mdd_node_type_data_get_label(l);
+        mdd_node_type_label_data_t *reference = mdd_node_type_data_get_label(r);
+        mdd_node_type_link_data_new(&$$->custom, BOOL_TRUE,
+            label ? &label->text : NULL,
+            NULL,
+            NULL,
+            reference ? &reference->text : NULL,
+            -1, -1);
+    }
+
+reference_link_single <- e:label (space_newline '[]')?
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK, $0s, $0e);
+        // e is the label as well as the reference.
+        mdd_node_append_child($$, e);
+        mdd_node_type_label_data_t *label = mdd_node_type_data_get_label(e);
+        char_array_t reference_text;
+        mdd_char_array_initialize(&reference_text);
+        if (label) {
+            // Duplicate the text.
+            reference_text = mdd_char_array_duplicate(&label->text);
+        }
+        mdd_node_type_link_data_new(&$$->custom, BOOL_TRUE,
+            label ? &label->text : NULL,
+            NULL,
+            NULL,
+            &reference_text,
+            -1, -1);
+        mdd_char_array_finalize(&reference_text);
+    }
+
+explicit_link_size <- l:label '(' space s:source space_newline t:title? space z:size space ')'
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK, $0s, $0e);
         mdd_node_append_child($$, l);
         mdd_node_append_child($$, s);
         mdd_node_append_child($$, t);
-        mdd_node_append_child($$, i);
+        mdd_node_append_child($$, z);
+        mdd_node_type_label_data_t *label = mdd_node_type_data_get_label(l);
+        mdd_node_type_label_data_t *source = mdd_node_type_data_get_label(s);
+        mdd_node_type_label_data_t *title = mdd_node_type_data_get_label(t);
+        mdd_node_type_size_data_t *size = mdd_node_type_data_get_size(z);
+        assert(size);
+        mdd_node_type_link_data_new(&$$->custom, BOOL_FALSE,
+            label ? &label->text : NULL,
+            source ? &source->text : NULL,
+            title ? &title->text : NULL,
+            NULL,
+            size->width, size->height);
     }
 
-image_size <- image_size_complete / image_size_width / image_size_height
-
-image_size_complete <- '=' [0-9]+ 'x' [0-9]+
-image_size_width <- '=' [0-9]+ 'x'
-image_size_height <- '=x' [0-9]+
+size <-
+    '=' < [0-9]+ > 'x' < [0-9]+ >
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SIZE, $0s, $0e);
+        mdd_node_type_size_data_new(&$$->custom, atoi($1), atoi($2));
+    }
+    / '=' < [0-9]+ > 'x'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SIZE, $0s, $0e);
+        mdd_node_type_size_data_new(&$$->custom, atoi($3), -1);
+    }
+    / '=x' < [0-9]+ >
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SIZE, $0s, $0e);
+        mdd_node_type_size_data_new(&$$->custom, -1, atoi($4));
+    }
 
 explicit_link <- l:label '(' space s:source space_newline t:title? space ')'
     {
@@ -151,22 +256,64 @@ explicit_link <- l:label '(' space s:source space_newline t:title? space ')'
         mdd_node_append_child($$, l);
         mdd_node_append_child($$, s);
         mdd_node_append_child($$, t);
+        mdd_node_type_label_data_t *label = mdd_node_type_data_get_label(l);
+        mdd_node_type_label_data_t *source = mdd_node_type_data_get_label(s);
+        mdd_node_type_label_data_t *title = mdd_node_type_data_get_label(t);
+        mdd_node_type_link_data_new(&$$->custom, BOOL_FALSE,
+            label ? &label->text : NULL,
+            source ? &source->text : NULL,
+            title ? &title->text : NULL,
+            NULL,
+            -1, -1);
     }
 
-source <- '<' source_contents '>'
+source <-
+    '<' < source_contents > '>'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SOURCE, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $1);
+    }
     / source_contents
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SOURCE, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $0);
+    }
 
 source_contents <- ((!'(' !')' !'>' nonspace_char)+ / '(' source_contents ')')*
 
-title <- title_single / title_double
+title <- (title_single / title_double)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_TITLE, $0s, $0e);
+        // Exclude the quotes.
+        mdd_node_type_label_data_new1(&$$->custom, $0 + 1, strlen($0) - 2);
+    }
 
 title_single <- '\'' (!('\'' / new_line) .)* '\''
 
 title_double <- '"' (!('"' / new_line) .)* '"'
 
-label <- '[' (!']' !'[' e:label_inline)* ']'
+label <- '[' e:label_inner? ']'
     {
-        $$ = mdd_node_create_v(MDD_NODE_TYPE_LABEL, $0s, $0e);
+        if (e) {
+            $$ = e;
+            mdd_node_data_set_range(&$$->custom, $0s, $0e);
+            mdd_node_type_label_data_new1(&$$->custom, $0 + 1, strlen($0) - 2);
+        } else {
+            $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_LABEL, $0s, $0e);
+            mdd_node_type_label_data_new(&$$->custom, "");
+        }
+    }
+
+label_inner <-
+    l:label_inner (!']' !'[' r:label_inline)
+    {
+        $$ = l;
+        mdd_node_append_child($$, r);
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+    / (!']' !'[' e:label_inline)
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK_LABEL, $0s, $0e);
         mdd_node_append_child($$, e);
     }
 
@@ -275,6 +422,8 @@ line <-
 
 indent <- '\t' / '    '
 
+nonindent_space <- '   ' / '  ' / ' ' / ''
+
 indented_line <- indent line
 
 nonblank_indented_line <- !blank_line indented_line
@@ -312,17 +461,17 @@ html_block_script <- html_block_script_open (!html_block_script_close .)* html_b
 %%
 
 void pcc_ast_manager_custom_data__initialize(pcc_ast_manager_custom_data_t *obj) {
-    mdd_data_on_initialize(obj);
+    mdd_data_initialize(obj);
 }
 
 void pcc_ast_manager_custom_data__finalize(pcc_ast_manager_custom_data_t *obj) {
-    mdd_data_on_finalize(obj);
+    mdd_data_finalize(obj);
 }
 
 void pcc_ast_node_custom_data__initialize(pcc_ast_node_custom_data_t *obj) {
-    mdd_node_data_on_initialize(obj);
+    mdd_node_data_initialize(obj);
 }
 
 void pcc_ast_node_custom_data__finalize(pcc_ast_node_custom_data_t *obj) {
-    mdd_node_data_on_finalize(obj);
+    mdd_node_data_finalize(obj);
 }

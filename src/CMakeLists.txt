@@ -20,6 +20,7 @@ endif()
 add_library(markdowndown STATIC
     markdowndown.h markdowndown.c
     data.h data.c
+    data_structures.h data_structures.c
     interface.h interface.c
     utils.h utils.c)
 

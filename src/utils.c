@@ -55,3 +55,40 @@ void mdd_node_append_child(pcc_ast_node_t *parent, pcc_ast_node_t *node) {
     pcc_ast_node__add_child(parent, node);
     // Do we need to take care of the range in the custom data?
 }
+
+mdd_node_type_label_data_t *mdd_node_type_data_get_label(pcc_ast_node_t *node) {
+    if (!node) {
+        return NULL;
+    }
+
+    mdd_node_data_t *obj = &node->custom;
+    if (!obj->type_data) {
+        return NULL;
+    }
+
+    if (obj->type == MDD_NODE_TYPE_LINK_LABEL ||
+        obj->type == MDD_NODE_TYPE_LINK_REFERENCE ||
+        obj->type == MDD_NODE_TYPE_LINK_SOURCE ||
+        obj->type == MDD_NODE_TYPE_LINK_TITLE) {
+        return &obj->type_data->label_data;
+    }
+
+    return NULL;
+}
+
+mdd_node_type_size_data_t *mdd_node_type_data_get_size(pcc_ast_node_t *node) {
+    if (!node) {
+        return NULL;
+    }
+
+    mdd_node_data_t *obj = &node->custom;
+    if (!obj->type_data) {
+        return NULL;
+    }
+
+    if (obj->type == MDD_NODE_TYPE_LINK_SIZE) {
+        return &obj->type_data->size_data;
+    }
+
+    return NULL;
+}

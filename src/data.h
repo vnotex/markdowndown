@@ -1,25 +1,9 @@
 #ifndef DATA_H
 #define DATA_H
 
-typedef struct range_tag {
-    size_t start;
-    size_t end;
-} range_t;
+#include <stddef.h>
 
-inline static range_t mdd_range_empty(void) {
-    const range_t r = { 0, 0 };
-    return r;
-}
-
-inline static range_t mdd_range_new(size_t start, size_t end) {
-    const range_t r = { start, end };
-    return r;
-}
-
-// |a| contains |b|.
-static int mdd_range_contains(const range_t *a, const range_t *b) {
-    return (a->start <= b->start) && (a->end >= b->end);
-}
+#include "data_structures.h"
 
 typedef enum mdd_node_type_tag {
     MDD_NODE_TYPE_UNKNOWN,
@@ -36,13 +20,109 @@ typedef enum mdd_node_type_tag {
     MDD_NODE_TYPE_IMAGE,
     MDD_NODE_TYPE_HTML,
     MDD_NODE_TYPE_ENTITY,
-    MDD_NODE_TYPE_LABEL,
     MDD_NODE_TYPE_LINK,
+    MDD_NODE_TYPE_LINK_LABEL,
+    MDD_NODE_TYPE_LINK_SOURCE,
+    MDD_NODE_TYPE_LINK_TITLE,
+    MDD_NODE_TYPE_LINK_SIZE,
+    MDD_NODE_TYPE_LINK_REFERENCE,
+    MDD_NODE_TYPE_REFERENCE,
+    MDD_NODE_TYPE_DUMMY,
     MDD_NODE_TYPE_H1,
     MDD_NODE_TYPE_H2,
 } mdd_node_type_t;
 
 const char *mdd_node_type_to_string(mdd_node_type_t type);
+
+// AST node data.
+// Link specific data.
+typedef struct mdd_node_type_link_data_tag {
+    bool_t is_reference;
+    char_array_t label;
+    char_array_t source;
+    char_array_t title;
+    char_array_t reference;
+    // -1 indicates not specified.
+    int width;
+    int height;
+} mdd_node_type_link_data_t;
+
+void mdd_node_type_link_data_finalize(mdd_node_type_link_data_t *obj);
+
+// Reference specific data.
+typedef struct mdd_node_type_reference_data_tag {
+    char_array_t id;
+    char_array_t source;
+    char_array_t title;
+} mdd_node_type_reference_data_t;
+
+void mdd_node_type_reference_data_finalize(mdd_node_type_reference_data_t *obj);
+
+// Label specific data.
+typedef struct mdd_node_type_label_data_tag {
+    char_array_t text;
+} mdd_node_type_label_data_t;
+
+void mdd_node_type_label_data_finalize(mdd_node_type_label_data_t *obj);
+
+// Size specific data.
+typedef struct mdd_node_type_size_data_tag {
+    int width;
+    int height;
+} mdd_node_type_size_data_t;
+
+void mdd_node_type_size_data_finalize(mdd_node_type_size_data_t *obj);
+
+typedef union mdd_node_type_data_tag {
+    mdd_node_type_link_data_t link_data;
+    mdd_node_type_reference_data_t reference_data;
+    mdd_node_type_label_data_t label_data;
+    mdd_node_type_size_data_t size_data;
+} mdd_node_type_data_t;
+
+void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj);
+
+typedef struct mdd_node_data_tag {
+    mdd_node_type_t type;
+    range_t range;
+    // Data for specific type.
+    mdd_node_type_data_t *type_data;
+} mdd_node_data_t;
+
+void mdd_node_data_initialize(mdd_node_data_t *obj);
+void mdd_node_data_finalize(mdd_node_data_t *obj);
+
+inline static void mdd_node_data_assign(mdd_node_data_t *obj,
+        mdd_node_type_t type, size_t start, size_t end) {
+    obj->type = type;
+    obj->range.start = start;
+    obj->range.end = end;
+}
+
+inline static void mdd_node_data_set_type(mdd_node_data_t *obj,
+        mdd_node_type_t type) {
+    obj->type = type;
+}
+
+inline static void mdd_node_data_set_range(mdd_node_data_t *obj,
+        size_t start, size_t end) {
+    obj->range.start = start;
+    obj->range.end = end;
+}
+
+int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj);
+
+void mdd_node_type_label_data_new(mdd_node_data_t *obj, const char *text);
+void mdd_node_type_label_data_new1(mdd_node_data_t *obj, const char *text, size_t len);
+
+void mdd_node_type_link_data_new(mdd_node_data_t *obj, bool_t is_reference,
+        char_array_t *label, char_array_t *source, char_array_t *title,
+        char_array_t *reference, int width, int height);
+
+void mdd_node_type_reference_data_new(mdd_node_data_t *obj,
+        char_array_t *id, char_array_t *source, char_array_t *title);
+
+void mdd_node_type_size_data_new(mdd_node_data_t *obj, int width, int height);
 
 // Context data during parse.
 typedef struct mdd_data_tag {
@@ -52,10 +132,13 @@ typedef struct mdd_data_tag {
 
     // Position in |input| that is going to be read currently.
     size_t cur;
+
+    pointer_array_t reference_links;
+    pointer_array_t references;
 } mdd_data_t;
 
-void mdd_data_on_initialize(mdd_data_t *obj);
-void mdd_data_on_finalize(mdd_data_t *obj);
+void mdd_data_initialize(mdd_data_t *obj);
+void mdd_data_finalize(mdd_data_t *obj);
 
 // Used for reading input by the parser.
 inline static int mdd_get_char_from_data(mdd_data_t *data) {
@@ -65,28 +148,6 @@ inline static int mdd_get_char_from_data(mdd_data_t *data) {
         ++data->cur;
     }
     return ret;
-}
-
-// AST node data.
-typedef struct mdd_node_data_tag {
-    mdd_node_type_t type;
-    range_t range;
-} mdd_node_data_t;
-
-void mdd_node_data_on_initialize(mdd_node_data_t *obj);
-void mdd_node_data_on_finalize(mdd_node_data_t *obj);
-
-inline static void mdd_node_data_assign(mdd_node_data_t *obj,
-        mdd_node_type_t type, size_t start, size_t end) {
-    obj->type = type;
-    obj->range.start = start;
-    obj->range.end = end;
-}
-
-inline static void mdd_node_data_set_range(mdd_node_data_t *obj,
-        size_t start, size_t end) {
-    obj->range.start = start;
-    obj->range.end = end;
 }
 
 #endif

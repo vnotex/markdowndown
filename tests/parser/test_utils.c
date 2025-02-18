@@ -6,106 +6,69 @@
 #include "interface.h"
 
 #define dump_node_type(node) mdd_node_type_to_string((node)->custom.type)
+#define dump_node_type_data(buf, len, node) mdd_node_type_data_dump((buf), len, &(node)->custom)
 #define dump_node_start(node) (node)->custom.range.start
 #define dump_node_end(node) (node)->custom.range.end
 
+#define add_and_check_buf() \
+    do { \
+        if (ret < 0) { \
+            return ret; \
+        } \
+        total += ret; \
+        if (total >= len) { \
+            return total; \
+        } \
+    } while (0)
+
 int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
+    const char *ast_node_type_strs[] = {"nul", "una", "bin", "ter", "var"};
     size_t idx = 0;
     int total = 0;
-    memset(buf, 0, len);
     if (obj) {
+        int ret = snprintf(buf, len, "%*s%s: %s[%zu,%zu)",
+                           2 * depth, "",
+                           ast_node_type_strs[(int)obj->type],
+                           dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
+        add_and_check_buf();
+        ret = dump_node_type_data(buf + total, len - total, obj);
+        add_and_check_buf();
+        ret = snprintf(buf + total, len - total, "\n");
+        add_and_check_buf();
+
         switch (obj->type) {
         case PCC_AST_NODE_TYPE_NULLARY:
-            total = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "nul",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
             break;
         case PCC_AST_NODE_TYPE_UNARY: {
-            int ret = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "una",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
             ret = dump_ast(obj->data.unary.node, depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
+            add_and_check_buf();
             break;
         }
         case PCC_AST_NODE_TYPE_BINARY: {
-            int ret = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "bin",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
             ret = dump_ast(obj->data.binary.node[0], depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
+            add_and_check_buf();
             ret = dump_ast(obj->data.binary.node[1], depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
+            add_and_check_buf();
             break;
         }
         case PCC_AST_NODE_TYPE_TERNARY: {
-            int ret = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "ter",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
             ret = dump_ast(obj->data.ternary.node[0], depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
+            add_and_check_buf();
             ret = dump_ast(obj->data.ternary.node[1], depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
+            add_and_check_buf();
             ret = dump_ast(obj->data.ternary.node[2], depth + 1, buf + total, len - total);
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
+            add_and_check_buf();
             break;
         }
         case PCC_AST_NODE_TYPE_VARIADIC: {
-            int ret = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "var",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
-            if (ret <= 0) {
-                return ret;
-            }
-            total += ret;
-
             {
-                size_t i;
-                for (i = 0; i < obj->data.variadic.len; i++) {
-                    int ret = dump_ast(obj->data.variadic.node[i], depth + 1, buf + total, len - total);
-                    if (ret <= 0) {
-                        return ret;
-                    }
-                    total += ret;
+                for (size_t i = 0; i < obj->data.variadic.len; ++i) {
+                    ret = dump_ast(obj->data.variadic.node[i], depth + 1, buf + total, len - total);
+                    add_and_check_buf();
                 }
             }
             break;
         }
-        default:
-            total = snprintf(buf, len, "%*s%s: %s[%zu,%zu)\n", 2 * depth, "", "(unk)",
-                    dump_node_type(obj), dump_node_start(obj), dump_node_end(obj));
-            break;
         }
     }
     else {
@@ -118,15 +81,11 @@ int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
 #define BUF_LEN 4096u
 
 int test_ast(const char *input, const char *expected_ast) {
-    return test_ast_0((const unsigned char *)input, strlen(input), expected_ast);
-}
-
-int test_ast_0(const unsigned char *input, size_t len, const char *expected_ast) {
     int passed = 0;
     char buffer[BUF_LEN + 1] = { 0 };
     pcc_ast_manager_t mgr;
 
-    pcc_ast_node_t *ast = mdd_parse(&mgr, input, len);
+    pcc_ast_node_t *ast = mdd_parse(&mgr, (const unsigned char *)input, strlen(input));
     if (ast) {
         int ret = dump_ast(ast, 0, buffer, BUF_LEN);
         if (ret > 0) {

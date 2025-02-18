@@ -7,8 +7,6 @@
 
 int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len);
 
-int test_ast_0(const unsigned char *input, size_t len, const char *expected_ast);
-
 int test_ast(const char *input, const char *expected_ast);
 
 #define TEST_AST(X, Y) do { if (test_ast((X), (Y)) == 0) return -1; } while (0)

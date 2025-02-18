@@ -25,4 +25,8 @@ pcc_ast_node_t *mdd_node_create_variadic(pcc_ast_manager_t *mgr,
 
 void mdd_node_append_child(pcc_ast_node_t *parent, pcc_ast_node_t *node);
 
+mdd_node_type_label_data_t *mdd_node_type_data_get_label(pcc_ast_node_t *node);
+
+mdd_node_type_size_data_t *mdd_node_type_data_get_size(pcc_ast_node_t *node);
+
 #endif
