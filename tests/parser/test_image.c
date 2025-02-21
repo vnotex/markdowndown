@@ -1,13 +1,13 @@
 #include "test_utils.h"
 
 int main() {
-    // Space between label and source.
-    // FIXME: uncomment it after adding check of reference label.
-    /*
+    // Space between label and source will break a link.
     TEST_AST("![alt] (cat.png)\n",
         "var: Document[0,17)\n"
         "  var: BlockList[0,17)\n"
-        "    var: Plain[0,17)\n");
+        "    var: Plain[0,17)\n"
+        "      var: Dummy[0,6)\n"
+        "        var: Dummy[1,6)\n");
 
     // Empty label.
     TEST_AST("![](cat.png)\n",
@@ -73,7 +73,6 @@ int main() {
         "        var: LinkLabel[1,6)\n"
         "        nul: LinkSource[7,14)\n"
         "        nul: LinkSize[15,20)\n");
-    */
 
     // Reference link.
     TEST_AST("![text][id]\n"
@@ -114,5 +113,13 @@ int main() {
         "      var: LinkLabel[7,11)\n"
         "      nul: LinkSource[13,20)\n"
         "      nul: LinkTitle[21,26)\n");
+
+    // Reference link without match.
+    TEST_AST("![id]\n",
+        "var: Document[0,6)\n"
+        "  var: BlockList[0,6)\n"
+        "    var: Plain[0,6)\n"
+        "      var: Dummy[0,5)\n"
+        "        var: Dummy[1,5)\n");
     return 0;
 }

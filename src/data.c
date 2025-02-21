@@ -35,19 +35,23 @@ void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj
     }
     switch (type) {
     case MDD_NODE_TYPE_IMAGE:
-        __attribute__ ((fallthrough));
+        // Fallthrough.
     case MDD_NODE_TYPE_LINK:
+        // Fallthrough;
+    case MDD_NODE_TYPE_AUTO_LINK_URL:
+        // Fallthrough;
+    case MDD_NODE_TYPE_AUTO_LINK_EMAIL:
         mdd_node_type_link_data_finalize(&obj->link_data);
         break;
     case MDD_NODE_TYPE_REFERENCE:
         mdd_node_type_reference_data_finalize(&obj->reference_data);
         break;
     case MDD_NODE_TYPE_LINK_LABEL:
-        __attribute__ ((fallthrough));
+        // Fallthrough.
     case MDD_NODE_TYPE_LINK_REFERENCE:
-        __attribute__ ((fallthrough));
+        // Fallthrough.
     case MDD_NODE_TYPE_LINK_SOURCE:
-        __attribute__ ((fallthrough));
+        // Fallthrough.
     case MDD_NODE_TYPE_LINK_TITLE:
         mdd_node_type_label_data_finalize(&obj->label_data);
         break;
@@ -166,6 +170,8 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_LINK_SIZE: return "LinkSize";
     case MDD_NODE_TYPE_LINK: return "Link";
     case MDD_NODE_TYPE_REFERENCE: return "Reference";
+    case MDD_NODE_TYPE_AUTO_LINK_URL: return "AutoLinkUrl";
+    case MDD_NODE_TYPE_AUTO_LINK_EMAIL: return "AutoLinkEmail";
     case MDD_NODE_TYPE_DUMMY: return "Dummy";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";
@@ -179,7 +185,11 @@ int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj) {
 
     switch (obj->type) {
     case MDD_NODE_TYPE_IMAGE:
-        __attribute__ ((fallthrough));
+        // Fallthrough;
+    case MDD_NODE_TYPE_AUTO_LINK_URL:
+        // Fallthrough;
+    case MDD_NODE_TYPE_AUTO_LINK_EMAIL:
+        // Fallthrough.
     case MDD_NODE_TYPE_LINK: {
         const mdd_node_type_link_data_t *data = &obj->type_data->link_data;
         return snprintf(buf, len, "{%d|%s|%s|%s|%s|%dx%d}",

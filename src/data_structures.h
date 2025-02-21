@@ -18,11 +18,11 @@ typedef struct char_array_tag {
 
 void mdd_char_array_initialize(char_array_t *obj);
 void mdd_char_array_finalize(char_array_t *obj);
+char_array_t mdd_char_array_new();
 void mdd_char_array_resize(char_array_t *obj, size_t new_len);
 void mdd_char_array_clear(char_array_t *obj);
 void mdd_char_array_swap(char_array_t *a, char_array_t *b);
 void mdd_char_array_assign(char_array_t *obj, const char *text);
-void mdd_char_array_assign1(char_array_t *obj, const char *text, size_t len);
 void mdd_char_array_assign1(char_array_t *obj, const char *text, size_t len);
 bool_t mdd_char_array_equal(const char_array_t *a, const char_array_t *b);
 bool_t mdd_char_array_empty(const char_array_t *obj);

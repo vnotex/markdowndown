@@ -89,7 +89,7 @@ int test_ast(const char *input, const char *expected_ast) {
     if (ast) {
         int ret = dump_ast(ast, 0, buffer, BUF_LEN);
         if (ret > 0) {
-            if (0 == strncmp(expected_ast, buffer, ret)) {
+            if (ret == strlen(expected_ast) && 0 == strncmp(expected_ast, buffer, ret)) {
                 printf(">>> Test PASSED <<<\n");
                 passed = 1;
             } else {

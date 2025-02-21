@@ -154,10 +154,40 @@ inline <-
      / e:emph
      / e:strike
      / e:image
+     / e:link
      / special_char
     )
     {
         $$ = e;
+    }
+
+link <- (e:explicit_link / e:reference_link / e:auto_link)
+    {
+        $$ = e;
+    }
+
+auto_link <-
+    '<' ASCII_Letter+ '://' (!new_line !'>' .)+ '>'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_AUTO_LINK_URL, $0s, $0e);
+
+        char_array_t label = mdd_char_array_new();
+        mdd_char_array_assign1(&label, $0 + 1, strlen($0) - 2);
+        char_array_t source = mdd_char_array_duplicate(&label);
+
+        mdd_node_type_link_data_new(&$$->custom, BOOL_FALSE,
+            &label, &source, NULL, NULL, -1, -1);
+    }
+    / '<' 'mailto:'? [-A-Za-z0-9+_./!%~$]+ '@' (!new_line !'>' .)+ '>'
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_AUTO_LINK_EMAIL, $0s, $0e);
+
+        char_array_t label = mdd_char_array_new();
+        mdd_char_array_assign1(&label, $0 + 1, strlen($0) - 2);
+        char_array_t source = mdd_char_array_duplicate(&label);
+
+        mdd_node_type_link_data_new(&$$->custom, BOOL_FALSE,
+            &label, &source, NULL, NULL, -1, -1);
     }
 
 image <- '!' (e:explicit_link / e:explicit_link_size / e:reference_link)
@@ -198,8 +228,7 @@ reference_link_single <- e:label (space_newline '[]')?
         // e is the label as well as the reference.
         mdd_node_append_child($$, e);
         mdd_node_type_label_data_t *label = mdd_node_type_data_get_label(e);
-        char_array_t reference_text;
-        mdd_char_array_initialize(&reference_text);
+        char_array_t reference_text = mdd_char_array_new();
         if (label) {
             // Duplicate the text.
             reference_text = mdd_char_array_duplicate(&label->text);

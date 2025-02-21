@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef _WIN32
+#define strncpy_s(dest, dest_size, src, cnt) do { strncpy((dest), (src), (cnt)); } while (0)
+#endif
+
 void mdd_char_array_initialize(char_array_t *obj) {
     obj->buf = NULL;
     obj->capacity = 0;
@@ -14,6 +18,12 @@ void mdd_char_array_initialize(char_array_t *obj) {
 
 void mdd_char_array_finalize(char_array_t *obj) {
     free(obj->buf);
+}
+
+char_array_t mdd_char_array_new() {
+    char_array_t tmp;
+    mdd_char_array_initialize(&tmp);
+    return tmp;
 }
 
 static size_t cal_next_capacity(size_t cap, size_t new_len) {
@@ -108,8 +118,7 @@ const char *mdd_char_array_to_string(const char_array_t *obj) {
 }
 
 char_array_t mdd_char_array_duplicate(const char_array_t *obj) {
-    char_array_t new_chars;
-    mdd_char_array_initialize(&new_chars);
+    char_array_t new_chars = mdd_char_array_new();
     mdd_char_array_assign1(&new_chars, obj->buf, obj->len);
     return new_chars;
 }
