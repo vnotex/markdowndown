@@ -18,11 +18,11 @@ int main() {
         "        nul: LinkLabel[1,3)\n"
         "        nul: LinkSource[4,11)\n");
 
-    TEST_AST("![abcdef](cat.png)\n",
+    TEST_AST("![中文](cat.png)\n",
         "var: Document[0,19)\n"
         "  var: BlockList[0,19)\n"
         "    var: Plain[0,19)\n"
-        "      var: Image[0,18){0|abcdef|cat.png|||-1x-1}\n"
+        "      var: Image[0,18){0|中文|cat.png|||-1x-1}\n"
         "        var: LinkLabel[1,9)\n"
         "        nul: LinkSource[10,17)\n");
 

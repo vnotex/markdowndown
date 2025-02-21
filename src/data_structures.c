@@ -7,7 +7,11 @@
 #include <string.h>
 
 #ifndef _WIN32
-#define strncpy_s(dest, dest_size, src, cnt) do { strncpy((dest), (src), (cnt)); } while (0)
+#define strncpy_s(dest, dest_size, src, cnt) \
+    do { \
+        strncpy((dest), (src), (cnt)); \
+        dest[cnt] = '\0'; \
+    } while (0)
 #endif
 
 void mdd_char_array_initialize(char_array_t *obj) {
