@@ -12,11 +12,15 @@ void mdd_data_initialize(mdd_data_t *obj) {
     obj->cur = 0;
     mdd_pointer_array_initialize(&obj->reference_links);
     mdd_pointer_array_initialize(&obj->references);
+    mdd_pointer_array_initialize(&obj->note_references);
+    mdd_pointer_array_initialize(&obj->notes);
 }
 
 void mdd_data_finalize(mdd_data_t *obj) {
     mdd_pointer_array_finalize(&obj->reference_links);
     mdd_pointer_array_finalize(&obj->references);
+    mdd_pointer_array_finalize(&obj->note_references);
+    mdd_pointer_array_finalize(&obj->notes);
 }
 
 void mdd_node_data_initialize(mdd_node_data_t *obj) {
@@ -37,14 +41,21 @@ void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj
     case MDD_NODE_TYPE_IMAGE:
         // Fallthrough.
     case MDD_NODE_TYPE_LINK:
-        // Fallthrough;
+        // Fallthrough.
     case MDD_NODE_TYPE_AUTO_LINK_URL:
-        // Fallthrough;
+        // Fallthrough.
     case MDD_NODE_TYPE_AUTO_LINK_EMAIL:
         mdd_node_type_link_data_finalize(&obj->link_data);
         break;
     case MDD_NODE_TYPE_REFERENCE:
         mdd_node_type_reference_data_finalize(&obj->reference_data);
+        break;
+    case MDD_NODE_TYPE_NOTE_REFERENCE:
+        // Fallthrough.
+    case MDD_NODE_TYPE_NOTE:
+        // Fallthrough.
+    case MDD_NODE_TYPE_INLINE_NOTE:
+        mdd_node_type_note_data_finalize(&obj->note_data);
         break;
     case MDD_NODE_TYPE_LINK_LABEL:
         // Fallthrough.
@@ -81,6 +92,11 @@ void mdd_node_type_reference_data_finalize(mdd_node_type_reference_data_t *obj) 
     mdd_char_array_finalize(&obj->id);
     mdd_char_array_finalize(&obj->source);
     mdd_char_array_finalize(&obj->title);
+}
+
+void mdd_node_type_note_data_finalize(mdd_node_type_note_data_t *obj) {
+    mdd_char_array_finalize(&obj->reference);
+    mdd_char_array_finalize(&obj->note);
 }
 
 void mdd_node_type_label_data_finalize(mdd_node_type_label_data_t *obj) {
@@ -147,6 +163,19 @@ void mdd_node_type_size_data_new(mdd_node_data_t *obj, int width, int height) {
     obj->type_data->size_data.height = height;
 }
 
+void mdd_node_type_note_data_new(mdd_node_data_t *obj,
+        char_array_t *reference, char_array_t *note) {
+    assert(!obj->type_data);
+    obj->type_data = mdd_node_type_data_new();
+    mdd_node_type_note_data_t *note_data = &obj->type_data->note_data;
+    if (reference) {
+        mdd_char_array_swap(&note_data->reference, reference);
+    }
+    if (note) {
+        mdd_char_array_swap(&note_data->note, note);
+    }
+}
+
 const char *mdd_node_type_to_string(mdd_node_type_t type) {
     switch (type) {
     case MDD_NODE_TYPE_UNKNOWN: return "Unknown";
@@ -172,6 +201,10 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_REFERENCE: return "Reference";
     case MDD_NODE_TYPE_AUTO_LINK_URL: return "AutoLinkUrl";
     case MDD_NODE_TYPE_AUTO_LINK_EMAIL: return "AutoLinkEmail";
+    case MDD_NODE_TYPE_NOTE_REFERENCE: return "NoteReference";
+    case MDD_NODE_TYPE_INLINE_NOTE: return "InlineNote";
+    case MDD_NODE_TYPE_NOTE: return "Note";
+    case MDD_NODE_TYPE_NOTE_BLOCK: return "NoteBlock";
     case MDD_NODE_TYPE_DUMMY: return "Dummy";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";
@@ -185,9 +218,9 @@ int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj) {
 
     switch (obj->type) {
     case MDD_NODE_TYPE_IMAGE:
-        // Fallthrough;
+        // Fallthrough.
     case MDD_NODE_TYPE_AUTO_LINK_URL:
-        // Fallthrough;
+        // Fallthrough.
     case MDD_NODE_TYPE_AUTO_LINK_EMAIL:
         // Fallthrough.
     case MDD_NODE_TYPE_LINK: {
@@ -207,6 +240,17 @@ int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj) {
                 mdd_char_array_to_string(&data->id),
                 mdd_char_array_to_string(&data->source),
                 mdd_char_array_to_string(&data->title));
+        break;
+    }
+    case MDD_NODE_TYPE_NOTE:
+        // Fallthrough.
+    case MDD_NODE_TYPE_INLINE_NOTE:
+        // Fallthrough.
+    case MDD_NODE_TYPE_NOTE_REFERENCE: {
+        const mdd_node_type_note_data_t *data = &obj->type_data->note_data;
+        return snprintf(buf, len, "{%s|%s}",
+                mdd_char_array_to_string(&data->reference),
+                mdd_char_array_to_string(&data->note));
         break;
     }
     default:

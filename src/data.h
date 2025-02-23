@@ -29,6 +29,10 @@ typedef enum mdd_node_type_tag {
     MDD_NODE_TYPE_REFERENCE,
     MDD_NODE_TYPE_AUTO_LINK_URL,
     MDD_NODE_TYPE_AUTO_LINK_EMAIL,
+    MDD_NODE_TYPE_NOTE_REFERENCE,
+    MDD_NODE_TYPE_NOTE,
+    MDD_NODE_TYPE_NOTE_BLOCK,
+    MDD_NODE_TYPE_INLINE_NOTE,
     MDD_NODE_TYPE_DUMMY,
     MDD_NODE_TYPE_H1,
     MDD_NODE_TYPE_H2,
@@ -60,6 +64,14 @@ typedef struct mdd_node_type_reference_data_tag {
 
 void mdd_node_type_reference_data_finalize(mdd_node_type_reference_data_t *obj);
 
+// Note specific data.
+typedef struct mdd_node_type_note_data_tag {
+    char_array_t reference;
+    char_array_t note;
+} mdd_node_type_note_data_t;
+
+void mdd_node_type_note_data_finalize(mdd_node_type_note_data_t *obj);
+
 // Label specific data.
 typedef struct mdd_node_type_label_data_tag {
     char_array_t text;
@@ -80,6 +92,7 @@ typedef union mdd_node_type_data_tag {
     mdd_node_type_reference_data_t reference_data;
     mdd_node_type_label_data_t label_data;
     mdd_node_type_size_data_t size_data;
+    mdd_node_type_note_data_t note_data;
 } mdd_node_type_data_t;
 
 void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj);
@@ -126,6 +139,9 @@ void mdd_node_type_reference_data_new(mdd_node_data_t *obj,
 
 void mdd_node_type_size_data_new(mdd_node_data_t *obj, int width, int height);
 
+void mdd_node_type_note_data_new(mdd_node_data_t *obj,
+        char_array_t *reference, char_array_t *note);
+
 // Context data during parse.
 typedef struct mdd_data_tag {
     // Input string to parse.
@@ -135,8 +151,13 @@ typedef struct mdd_data_tag {
     // Position in |input| that is going to be read currently.
     size_t cur;
 
+    // For reference links and references.
     pointer_array_t reference_links;
     pointer_array_t references;
+
+    // For note references and non-inline notes.
+    pointer_array_t note_references;
+    pointer_array_t notes;
 } mdd_data_t;
 
 void mdd_data_initialize(mdd_data_t *obj);

@@ -54,6 +54,39 @@ static void validate_reference_links(pcc_ast_manager_t *mgr) {
     end_for_each
 }
 
+static void validate_note_references(pcc_ast_manager_t *mgr) {
+    const pointer_array_t *refs = &mgr->custom.note_references;
+    const pointer_array_t *notes = &mgr->custom.notes;
+    if (refs->len == 0) {
+        return;
+    }
+
+    mdd_pointer_array_for_each(refs, ref)
+        mdd_node_data_t *ref_node = &((pcc_ast_node_t *)ref)->custom;
+        mdd_node_type_note_data_t *ref_node_data = &ref_node->type_data->note_data;
+        bool_t found = BOOL_FALSE;
+        mdd_pointer_array_for_each(notes, note)
+            mdd_node_data_t *note_node = &((pcc_ast_node_t *)note)->custom;
+            mdd_node_type_note_data_t *note_node_data = &note_node->type_data->note_data;
+            if (mdd_char_array_equal(&ref_node_data->reference, &note_node_data->reference)) {
+                assert(mdd_char_array_empty(&ref_node_data->note));
+                ref_node_data->note = mdd_char_array_duplicate(&note_node_data->note);
+                found = BOOL_TRUE;
+                break;
+            }
+        end_for_each
+        if (!found) {
+            // Transform invalid note refs to dummy elements.
+            pcc_ast_node_t *node = (pcc_ast_node_t *)ref;
+            assert(node->type == PCC_AST_NODE_TYPE_NULLARY);
+            mdd_node_type_data_finalize(ref_node->type, ref_node->type_data);
+            ref_node->type_data = NULL;
+            ref_node->type = MDD_NODE_TYPE_DUMMY;
+        }
+    end_for_each
+}
+
+
 pcc_ast_node_t *mdd_parse(pcc_ast_manager_t *mgr, const unsigned char *buf, size_t len) {
     pcc_ast_manager__initialize(mgr);
     mgr->custom.input = buf;
@@ -63,6 +96,7 @@ pcc_ast_node_t *mdd_parse(pcc_ast_manager_t *mgr, const unsigned char *buf, size
     pcc_ast_node_t *ast = NULL;
     mddi_parse(ctx, &ast);
     validate_reference_links(mgr);
+    validate_note_references(mgr);
     mddi_destroy(ctx);
     return ast;
 }

@@ -74,7 +74,7 @@ block <-
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (e:verbatim / e:reference / e:plain)
+    / (e:verbatim / e:note / e:reference / e:plain)
     {
         $$ = e;
     }
@@ -155,10 +155,84 @@ inline <-
      / e:strike
      / e:image
      / e:link
+     / e:note_reference
+     / e:inline_note
      / special_char
     )
     {
         $$ = e;
+    }
+
+inline_note <- '^['
+    {
+        // Need to fix the range at the end.
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_INLINE_NOTE, $0s, $0e);
+    }
+    (!']' e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+
+    ']'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+
+        char_array_t note = mdd_char_array_new();
+        mdd_char_array_assign1(&note, $0 + 2, strlen($0) - 3);
+        mdd_node_type_note_data_new(&$$->custom, NULL, &note);
+    }
+
+note_reference <- note_reference_inner
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_NOTE_REFERENCE, $0s, $0e);
+        char_array_t reference = mdd_char_array_new();
+        mdd_char_array_assign1(&reference, $0 + 2, strlen($0) - 3);
+        mdd_node_type_note_data_new(&$$->custom, &reference, NULL);
+        mdd_pointer_array_add(&auxil->custom.note_references, $$);
+    }
+
+note_reference_inner <- '[^' (!new_line !']' .)+ ']'
+
+note <- nonindent_space <note_reference_inner> ':' space <l:note_block blank_line* r:indented_note_block_list?>
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE, $0s, $0e);
+        mdd_node_append_child($$, l);
+        mdd_node_append_child($$, r);
+
+        char_array_t reference = mdd_char_array_new();
+        mdd_char_array_assign1(&reference, $1 + 2, strlen($1) - 3);
+        char_array_t note = mdd_char_array_new();
+        mdd_char_array_assign(&note, $2);
+        mdd_node_type_note_data_new(&$$->custom, &reference, &note);
+
+        mdd_pointer_array_add(&auxil->custom.notes, $$);
+    }
+
+indented_note_block_list <-
+    l:indented_note_block_list &indent r:note_block blank_line*
+    {
+        $$ = l;
+        mdd_node_append_child($$, r);
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+    / &indent e:note_block blank_line*
+    {
+        // Still use NOTE_BLOCK here for simplicity.
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE_BLOCK, $0s, $0e);
+        mdd_node_append_child($$, e);
+    }
+
+note_block <-
+    l:note_block !blank_line indent? r:line
+    {
+        $$ = l;
+        mdd_node_append_child($$, r);
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+    / !blank_line indent? e:line
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE_BLOCK, $0s, $0e);
+        mdd_node_append_child($$, e);
     }
 
 link <- (e:explicit_link / e:reference_link / e:auto_link)
@@ -334,13 +408,14 @@ label <- '[' e:label_inner? ']'
     }
 
 label_inner <-
-    l:label_inner (!']' !'[' r:label_inline)
+    # [^abc] is for note reference.
+    l:label_inner (!'^' !']' !'[' r:label_inline)
     {
         $$ = l;
         mdd_node_append_child($$, r);
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
-    / (!']' !'[' e:label_inline)
+    / (!'^' !']' !'[' e:label_inline)
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_LINK_LABEL, $0s, $0e);
         mdd_node_append_child($$, e);

@@ -50,6 +50,11 @@ add_executable(test_link
     test_utils.h test_utils.c)
 target_link_libraries(test_link PRIVATE markdowndown)
 
+add_executable(test_note
+    test_note.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_note PRIVATE markdowndown)
+
 add_test(NAME test_document
     COMMAND $<TARGET_FILE:test_document>)
 add_test(NAME test_front_matter
@@ -70,3 +75,5 @@ add_test(NAME test_image
     COMMAND $<TARGET_FILE:test_image>)
 add_test(NAME test_link
     COMMAND $<TARGET_FILE:test_link>)
+add_test(NAME test_note
+    COMMAND $<TARGET_FILE:test_note>)

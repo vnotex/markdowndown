@@ -9,8 +9,9 @@
 #ifndef _WIN32
 #define strncpy_s(dest, dest_size, src, cnt) \
     do { \
+        assert((dest_size) > (cnt));
         strncpy((dest), (src), (cnt)); \
-        dest[cnt] = '\0'; \
+        (dest)[(cnt)] = '\0'; \
     } while (0)
 #endif
 
