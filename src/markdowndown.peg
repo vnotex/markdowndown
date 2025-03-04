@@ -38,6 +38,12 @@ static const char *dbg_str[] = { "Evaluating", "Matched", "Abandoned" };
             fprintf(stderr, "%*s%s %s @(%zu,%zu)\n", (int)((level) * 2), "", dbg_str[event], rule, pos, length); \
         }\
     } while (0)
+
+int look_back_nonspace(mddi_context_t *ctx);
+
+int inline_equation_pre(mddi_context_t *ctx);
+int inline_equation_post(mddi_context_t *ctx);
+
 }
 
 ######
@@ -153,15 +159,68 @@ inline <-
      / e:strong
      / e:emph
      / e:strike
+     / e:mark
      / e:image
      / e:link
      / e:note_reference
      / e:inline_note
+     / e:code
+     / e:inline_equation
+     / e:mark_html
+     / e:raw_html
+     / e:entity
+     / e:escaped_char
      / special_char
     )
     {
         $$ = e;
     }
+
+mark <- '==' !whitespace (!'==' inline)+ &{ look_back_nonspace(ctx) } '=='
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_MARK, $0s, $0e);
+    }
+
+mark_html <- mark_html_open
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_MARK, $0s, $0e);
+    }
+    (!mark_html_close (e:raw_html { mdd_node_append_child($$, e); } / .))* mark_html_close
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+    }
+
+mark_html_open <- '<' space_newline ('mark' / 'MARK') space_newline html_attribute* '>'
+
+mark_html_close <- '<' space_newline '/' ('mark' / 'MARK') space_newline '>'
+
+inline_equation <- (inline_equation_single / inline_equation_multiple)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_INLINE_EQUATION, $0s, $0e);
+    }
+
+inline_equation_single <- '$' &{ inline_equation_pre(ctx) } !'$' !'\\' nonspace_char '$' ![0-9]
+
+inline_equation_multiple <- '$' &{ inline_equation_pre(ctx) } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ inline_equation_post(ctx) } ![0-9]
+
+ticks1 <- '`' !'`'
+ticks2 <- '``' !'`'
+ticks3 <- '```' !'`'
+ticks4 <- '````' !'`'
+ticks5 <- '`````' !'`'
+
+code <- (ticks1 space ((!'`' nonspace_char)+ / !ticks1 '`'+ / !(space ticks1) (space_char / new_line !blank_line))+ space ticks1
+    / ticks2 space ((!'`' nonspace_char)+ / !ticks2 '`'+ / !(space ticks2) (space_char / new_line !blank_line))+ space ticks2
+    / !fenced_code_block_start_tick_line ticks3 space ((!'`' nonspace_char)+ / !ticks3 '`'+ / !(space ticks3) (space_char / new_line !blank_line))+ space ticks3
+    / ticks4 space ((!'`' nonspace_char)+ / !ticks4 '`'+ / !(space ticks4) (space_char / new_line !blank_line))+ space ticks4
+    / ticks5 space ((!'`' nonspace_char)+ / !ticks5 '`'+ / !(space ticks5) (space_char / new_line !blank_line))+ space ticks5)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_CODE, $0s, $0e);
+    }
+
+fenced_code_block_start_tick <- '```' (!new_line !'`' .)*
+
+fenced_code_block_start_tick_line <- fenced_code_block_start_tick new_line
 
 inline_note <- '^['
     {
@@ -453,7 +512,7 @@ html_comment <- '<!--' (!'-->' .)* '-->'
 
 html_tag <- '<' space_newline '/'? alphanumeric_ascii+ space_newline html_attribute* '/'? space_newline '>'
 
-strike <- '~~' !whitespace (!'~~' inline)+ '~~'
+strike <- '~~' !whitespace (!'~~' inline)+ &{ look_back_nonspace(ctx) } '~~'
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_STRIKE, $0s, $0e);
     }
@@ -463,12 +522,12 @@ strong <- (e:strong_star / e:strong_ul)
         $$ = e;
     }
 
-strong_star <- '**' !whitespace (!'**' inline)+ '**'
+strong_star <- '**' !whitespace (!'**' inline)+ &{ look_back_nonspace(ctx) } '**'
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
     }
 
-strong_ul <- '__' !whitespace (!'__' inline)+ '__'
+strong_ul <- '__' !whitespace (!'__' inline)+ &{ look_back_nonspace(ctx) } '__'
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
     }
@@ -478,13 +537,13 @@ emph <- (e:emph_star / e:emph_ul)
         $$ = e;
     }
 
-emph_star <- '*' !whitespace (!'*' inline / e:strong_star)+ '*'
+emph_star <- '*' !whitespace (!'*' inline / e:strong_star)+ &{ look_back_nonspace(ctx) } '*'
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
         mdd_node_append_child($$, e);
     }
 
-emph_ul <- '_' !whitespace (!'_' inline / e:strong_ul)+ '_'
+emph_ul <- '_' !whitespace (!'_' inline / e:strong_ul)+ &{ look_back_nonspace(ctx) } '_'
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
         mdd_node_append_child($$, e);
@@ -502,7 +561,7 @@ normal_char <- !(special_char / space_char / new_line ) .
 
 special_char <- '~' / '*' / '_' / '`' / '&' / '[' / ']' / '(' / ')' / '<' / '!' / '#' / '\\' / '\'' / '"' / special_char_ext
 
-special_char_ext <- '^' / '$' / '|'
+special_char_ext <- '^' / '$' / '|' / '='
 
 alphanumeric <- ASCII_C_alnum / Unicode_Letter / Unicode_Number
 
@@ -578,4 +637,40 @@ void pcc_ast_node_custom_data__initialize(pcc_ast_node_custom_data_t *obj) {
 
 void pcc_ast_node_custom_data__finalize(pcc_ast_node_custom_data_t *obj) {
     mdd_node_data_finalize(obj);
+}
+
+int look_back_nonspace(mddi_context_t *ctx) {
+    const char *buf = ctx->buffer.buf + ctx->cur;
+    if (ctx->cur == 0) {
+        return 1;
+    }
+    const unsigned char ch = *(buf - 1);
+    if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
+        return 1;
+    }
+    return 0;
+}
+
+int inline_equation_pre(mddi_context_t *ctx) {
+    const char *buf = ctx->buffer.buf + ctx->cur;
+    assert(ctx->cur > 0);
+    assert(*(buf - 1) == '$');
+    if (ctx->cur < 2) {
+        return 1;
+    }
+    const unsigned char ch = *(buf - 2);
+    if (ch != '$' && (ch < '0' || ch > '9') && ch != '\\') {
+        return 1;
+    }
+    return 0;
+}
+
+int inline_equation_post(mddi_context_t *ctx) {
+    const char *buf = ctx->buffer.buf + ctx->cur;
+    assert(ctx->cur >= 2);
+    const unsigned char ch = *(buf - 2);
+    if (ch != ' ' && ch != '\t' && ch != '\\') {
+        return 1;
+    }
+    return 0;
 }

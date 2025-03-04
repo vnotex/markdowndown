@@ -205,6 +205,9 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_INLINE_NOTE: return "InlineNote";
     case MDD_NODE_TYPE_NOTE: return "Note";
     case MDD_NODE_TYPE_NOTE_BLOCK: return "NoteBlock";
+    case MDD_NODE_TYPE_CODE: return "Code";
+    case MDD_NODE_TYPE_INLINE_EQUATION: return "InlineEquation";
+    case MDD_NODE_TYPE_MARK: return "Mark";
     case MDD_NODE_TYPE_DUMMY: return "Dummy";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";

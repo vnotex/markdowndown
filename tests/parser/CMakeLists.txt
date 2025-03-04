@@ -55,6 +55,21 @@ add_executable(test_note
     test_utils.h test_utils.c)
 target_link_libraries(test_note PRIVATE markdowndown)
 
+add_executable(test_code
+    test_code.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_code PRIVATE markdowndown)
+
+add_executable(test_math
+    test_math.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_math PRIVATE markdowndown)
+
+add_executable(test_mark
+    test_mark.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_mark PRIVATE markdowndown)
+
 add_test(NAME test_document
     COMMAND $<TARGET_FILE:test_document>)
 add_test(NAME test_front_matter
@@ -77,3 +92,9 @@ add_test(NAME test_link
     COMMAND $<TARGET_FILE:test_link>)
 add_test(NAME test_note
     COMMAND $<TARGET_FILE:test_note>)
+add_test(NAME test_code
+    COMMAND $<TARGET_FILE:test_code>)
+add_test(NAME test_math
+    COMMAND $<TARGET_FILE:test_math>)
+add_test(NAME test_mark
+    COMMAND $<TARGET_FILE:test_mark>)

@@ -29,5 +29,25 @@ int main() {
         "    var: Plain[0,10)\n"
         "      var: Emph[0,9)\n"
         "        nul: Strong[2,7)\n");
+
+    // Not emph.
+    TEST_AST("*abcde *\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n");
+
+    // Not emph.
+    TEST_AST("*abcde\n*\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n");
+
+    // emph.
+    TEST_AST("*abc\ncd*\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n"
+        "      var: Emph[0,8)\n");
+
     return 0;
 }

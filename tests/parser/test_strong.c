@@ -21,5 +21,24 @@ int main() {
         "    var: Plain[0,22)\n"
         "      nul: Strong[0,7)\n"
         "      nul: Strong[11,18)\n");
+
+    // Not strong.
+    TEST_AST("**abc **\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n");
+
+    // Not strong.
+    TEST_AST("**abc\n**\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n");
+
+    // Strong.
+    TEST_AST("**ac\nc**\n",
+        "var: Document[0,9)\n"
+        "  var: BlockList[0,9)\n"
+        "    var: Plain[0,9)\n"
+        "      nul: Strong[0,8)\n");
     return 0;
 }
