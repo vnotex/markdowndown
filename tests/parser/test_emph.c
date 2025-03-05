@@ -23,12 +23,13 @@ int main() {
         "      var: Emph[9,14)\n");
 
     // Strong within emph.
-    TEST_AST("*a**b**c*\n",
-        "var: Document[0,10)\n"
-        "  var: BlockList[0,10)\n"
-        "    var: Plain[0,10)\n"
-        "      var: Emph[0,9)\n"
-        "        nul: Strong[2,7)\n");
+    TEST_AST("*a**b**de**fg**hijc*\n",
+        "var: Document[0,21)\n"
+        "  var: BlockList[0,21)\n"
+        "    var: Plain[0,21)\n"
+        "      var: Emph[0,20)\n"
+        "        var: Strong[2,7)\n"
+        "        var: Strong[9,15)\n");
 
     // Not emph.
     TEST_AST("*abcde *\n",

@@ -80,9 +80,29 @@ block <-
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (e:verbatim / e:note / e:reference / e:plain)
+    / (e:block_quote / e:verbatim / e:note / e:reference / e:plain)
     {
         $$ = e;
+    }
+
+# TODO: for block quote, we need to re-parse it separately after the main parse.
+# For now, we will only parse the inline elements within it.
+block_quote <-
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_BLOCK_QUOTE, $0s, $0e);
+    }
+    ('>' ' '? l:inline? new_line?
+        {
+            mdd_node_append_child($$, l);
+        }
+     (!'>' !blank_line r:inline new_line?
+        {
+            mdd_node_append_child($$, r);
+        }
+     )*
+    )+
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
 verbatim <- nonblank_indented_line+
@@ -176,9 +196,17 @@ inline <-
         $$ = e;
     }
 
-mark <- '==' !whitespace (!'==' inline)+ &{ look_back_nonspace(ctx) } '=='
+mark <- '==' !whitespace
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_MARK, $0s, $0e);
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_MARK, $0s, $0e);
+    }
+    (!'==' e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '=='
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
 mark_html <- mark_html_open
@@ -252,7 +280,7 @@ note_reference <- note_reference_inner
 
 note_reference_inner <- '[^' (!new_line !']' .)+ ']'
 
-note <- nonindent_space <note_reference_inner> ':' space <l:note_block blank_line* r:indented_note_block_list?>
+note <- nonindent_space <note_reference_inner> ':' space <l:block blank_line* r:indented_block_list?>
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE, $0s, $0e);
         mdd_node_append_child($$, l);
@@ -267,28 +295,14 @@ note <- nonindent_space <note_reference_inner> ':' space <l:note_block blank_lin
         mdd_pointer_array_add(&auxil->custom.notes, $$);
     }
 
-indented_note_block_list <-
-    l:indented_note_block_list &indent r:note_block blank_line*
+indented_block_list <-
+    l:indented_block_list &indent r:block blank_line*
     {
         $$ = l;
         mdd_node_append_child($$, r);
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
-    / &indent e:note_block blank_line*
-    {
-        // Still use NOTE_BLOCK here for simplicity.
-        $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE_BLOCK, $0s, $0e);
-        mdd_node_append_child($$, e);
-    }
-
-note_block <-
-    l:note_block !blank_line indent? r:line
-    {
-        $$ = l;
-        mdd_node_append_child($$, r);
-        mdd_node_data_set_range(&$$->custom, $0s, $0e);
-    }
-    / !blank_line indent? e:line
+    / &indent e:block blank_line*
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_NOTE_BLOCK, $0s, $0e);
         mdd_node_append_child($$, e);
@@ -512,9 +526,17 @@ html_comment <- '<!--' (!'-->' .)* '-->'
 
 html_tag <- '<' space_newline '/'? alphanumeric_ascii+ space_newline html_attribute* '/'? space_newline '>'
 
-strike <- '~~' !whitespace (!'~~' inline)+ &{ look_back_nonspace(ctx) } '~~'
+strike <- '~~' !whitespace
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRIKE, $0s, $0e);
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_STRIKE, $0s, $0e);
+    }
+    (!'~~' e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '~~'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
 strong <- (e:strong_star / e:strong_ul)
@@ -522,14 +544,30 @@ strong <- (e:strong_star / e:strong_ul)
         $$ = e;
     }
 
-strong_star <- '**' !whitespace (!'**' inline)+ &{ look_back_nonspace(ctx) } '**'
+strong_star <- '**' !whitespace
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_STRONG, $0s, $0e);
+    }
+    (!'**' e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '**'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
-strong_ul <- '__' !whitespace (!'__' inline)+ &{ look_back_nonspace(ctx) } '__'
+strong_ul <- '__' !whitespace
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_STRONG, $0s, $0e);
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_STRONG, $0s, $0e);
+    }
+    (!'__' e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '__'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
 emph <- (e:emph_star / e:emph_ul)
@@ -537,16 +575,30 @@ emph <- (e:emph_star / e:emph_ul)
         $$ = e;
     }
 
-emph_star <- '*' !whitespace (!'*' inline / e:strong_star)+ &{ look_back_nonspace(ctx) } '*'
+emph_star <- '*' !whitespace
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
-        mdd_node_append_child($$, e);
+    }
+    ((!'*' e:inline / e:strong_star)
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '*'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
-emph_ul <- '_' !whitespace (!'_' inline / e:strong_ul)+ &{ look_back_nonspace(ctx) } '_'
+emph_ul <- '_' !whitespace
     {
         $$ = mdd_node_create_v(MDD_NODE_TYPE_EMPH, $0s, $0e);
-        mdd_node_append_child($$, e);
+    }
+    ((!'_' e:inline / e:strong_star)
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+ &{ look_back_nonspace(ctx) } '_'
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
 
 ul_or_star_line <- ul_line / star_line

@@ -13,15 +13,15 @@ int main() {
         "var: Document[0,7)\n"
         "  var: BlockList[0,7)\n"
         "    var: Plain[0,7)\n"
-        "      nul: Mark[1,6)\n");
+        "      var: Mark[1,6)\n");
 
     TEST_AST("==abc==def\n"
         "==abc== def",
         "var: Document[0,22)\n"
         "  var: BlockList[0,22)\n"
         "    var: Plain[0,22)\n"
-        "      nul: Mark[0,7)\n"
-        "      nul: Mark[11,18)\n");
+        "      var: Mark[0,7)\n"
+        "      var: Mark[11,18)\n");
 
     // Do not allow whitespace before the ending mark.
     TEST_AST("==abc ==def\n",
