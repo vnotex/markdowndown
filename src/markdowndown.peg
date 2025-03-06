@@ -48,6 +48,8 @@ int look_back_nonspace(mddi_context_t *ctx);
 int inline_equation_pre(mddi_context_t *ctx);
 int inline_equation_post(mddi_context_t *ctx);
 
+int look_back_one_char(mddi_context_t *ctx, char *excludes, size_t len, int positive);
+
 }
 
 ######
@@ -84,9 +86,34 @@ block <-
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (e:block_quote / e:verbatim / e:note / e:reference / e:plain)
+    / (e:block_quote / e:verbatim / e:fenced_code_block / e:note / e:reference / e:plain)
     {
         $$ = e;
+    }
+
+fenced_code_block <- (e:fenced_code_block_tick / e:fenced_code_block_tidle)
+    {
+        $$ = e;
+    }
+
+fenced_code_block_tick_close <- '```' space (new_line / end_of_file)
+
+fenced_code_block_tick <- '```' space <(!new_line !'`' .)*> new_line
+    (!fenced_code_block_tick_close (!new_line .)* new_line)*
+    fenced_code_block_tick_close
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_FENCED_CODE_BLOCK, $0s, $0e);
+        mdd_node_type_code_block_data_new(&$$->custom, $1);
+    }
+
+fenced_code_block_tidle_close <- '~~~' space (new_line / end_of_file)
+
+fenced_code_block_tidle <- '~~~' space <(!new_line !'~' .)*> new_line
+    (!fenced_code_block_tidle_close (!new_line .)* new_line)*
+    fenced_code_block_tidle_close
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_FENCED_CODE_BLOCK, $0s, $0e);
+        mdd_node_type_code_block_data_new(&$$->custom, $1);
     }
 
 # TODO: for block quote, we need to re-parse it separately after the main parse.
@@ -235,11 +262,14 @@ inline_equation_single <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' !'\\'
 
 inline_equation_multiple <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ @@ = inline_equation_post(pcc_ctx); } ![0-9]
 
+# Define all ticks rules together
 ticks1 <- '`' !'`'
 ticks2 <- '``' !'`'
 ticks3 <- '```' !'`'
 ticks4 <- '````' !'`'
 ticks5 <- '`````' !'`'
+
+fenced_code_block_start_tick_line <- '```' (!new_line !'`' .)* new_line
 
 code <- (ticks1 space ((!'`' nonspace_char)+ / !ticks1 '`'+ / !(space ticks1) (space_char / new_line !blank_line))+ space ticks1
     / ticks2 space ((!'`' nonspace_char)+ / !ticks2 '`'+ / !(space ticks2) (space_char / new_line !blank_line))+ space ticks2
@@ -249,10 +279,6 @@ code <- (ticks1 space ((!'`' nonspace_char)+ / !ticks1 '`'+ / !(space ticks1) (s
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_CODE, $0s, $0e);
     }
-
-fenced_code_block_start_tick <- '```' (!new_line !'`' .)*
-
-fenced_code_block_start_tick_line <- fenced_code_block_start_tick new_line
 
 inline_note <- '^['
     {
@@ -698,15 +724,22 @@ void mddi_ast_node_custom_data__finalize(mddi_ast_node_custom_data_t *obj) {
 }
 
 int look_back_nonspace(mddi_context_t *ctx) {
+    char data[] = {' ', '\t', '\n', '\r'};
+    return look_back_one_char(ctx, data, sizeof(data), 0);
+}
+
+int look_back_one_char(mddi_context_t *ctx, char *chars, size_t len, int positive) {
     const char *buf = ctx->buffer.p + ctx->cur;
     if (ctx->cur == 0) {
         return 1;
     }
     const unsigned char ch = *(buf - 1);
-    if (ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r') {
-        return 1;
+    for (size_t i = 0; i < len; ++i) {
+        if (ch == chars[i]) {
+            return positive;
+        }
     }
-    return 0;
+    return !positive;
 }
 
 int inline_equation_pre(mddi_context_t *ctx) {

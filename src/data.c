@@ -69,6 +69,9 @@ void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj
     case MDD_NODE_TYPE_LINK_SIZE:
         mdd_node_type_size_data_finalize(&obj->size_data);
         break;
+    case MDD_NODE_TYPE_FENCED_CODE_BLOCK:
+        mdd_node_type_code_block_data_finalize(&obj->code_block_data);
+        break;
     default:
         break;
     }
@@ -97,6 +100,10 @@ void mdd_node_type_reference_data_finalize(mdd_node_type_reference_data_t *obj) 
 void mdd_node_type_note_data_finalize(mdd_node_type_note_data_t *obj) {
     mdd_char_array_finalize(&obj->reference);
     mdd_char_array_finalize(&obj->note);
+}
+
+void mdd_node_type_code_block_data_finalize(mdd_node_type_code_block_data_t *obj) {
+    mdd_char_array_finalize(&obj->lang);
 }
 
 void mdd_node_type_label_data_finalize(mdd_node_type_label_data_t *obj) {
@@ -176,6 +183,13 @@ void mdd_node_type_note_data_new(mdd_node_data_t *obj,
     }
 }
 
+void mdd_node_type_code_block_data_new(mdd_node_data_t *obj, const char *lang) {
+    assert(!obj->type_data);
+    obj->type_data = mdd_node_type_data_new();
+    mdd_node_type_code_block_data_t *code_block_data = &obj->type_data->code_block_data;
+    mdd_char_array_assign(&obj->type_data->code_block_data.lang, lang);
+}
+
 const char *mdd_node_type_to_string(mdd_node_type_t type) {
     switch (type) {
     case MDD_NODE_TYPE_UNKNOWN: return "Unknown";
@@ -209,6 +223,7 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_INLINE_EQUATION: return "InlineEquation";
     case MDD_NODE_TYPE_MARK: return "Mark";
     case MDD_NODE_TYPE_BLOCK_QUOTE: return "BlockQuote";
+    case MDD_NODE_TYPE_FENCED_CODE_BLOCK: return "FencedCodeBlock";
     case MDD_NODE_TYPE_DUMMY: return "Dummy";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";
@@ -255,6 +270,12 @@ int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj) {
         return snprintf(buf, len, "{%s|%s}",
                 mdd_char_array_to_string(&data->reference),
                 mdd_char_array_to_string(&data->note));
+        break;
+    }
+    case MDD_NODE_TYPE_FENCED_CODE_BLOCK: {
+        const mdd_node_type_code_block_data_t *data = &obj->type_data->code_block_data;
+        return snprintf(buf, len, "{%s}",
+                mdd_char_array_to_string(&data->lang));
         break;
     }
     default:

@@ -37,6 +37,7 @@ typedef enum mdd_node_type_tag {
     MDD_NODE_TYPE_INLINE_EQUATION,
     MDD_NODE_TYPE_MARK,
     MDD_NODE_TYPE_BLOCK_QUOTE,
+    MDD_NODE_TYPE_FENCED_CODE_BLOCK,
     MDD_NODE_TYPE_DUMMY,
     MDD_NODE_TYPE_H1,
     MDD_NODE_TYPE_H2,
@@ -76,6 +77,13 @@ typedef struct mdd_node_type_note_data_tag {
 
 void mdd_node_type_note_data_finalize(mdd_node_type_note_data_t *obj);
 
+// Code block specific data.
+typedef struct mdd_node_type_code_block_data_tag {
+    char_array_t lang;
+} mdd_node_type_code_block_data_t;
+
+void mdd_node_type_code_block_data_finalize(mdd_node_type_code_block_data_t *obj);
+
 // Label specific data.
 typedef struct mdd_node_type_label_data_tag {
     char_array_t text;
@@ -97,6 +105,7 @@ typedef union mdd_node_type_data_tag {
     mdd_node_type_label_data_t label_data;
     mdd_node_type_size_data_t size_data;
     mdd_node_type_note_data_t note_data;
+    mdd_node_type_code_block_data_t code_block_data;
 } mdd_node_type_data_t;
 
 void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj);
@@ -147,6 +156,8 @@ void mdd_node_type_size_data_new(mdd_node_data_t *obj, int width, int height);
 
 void mdd_node_type_note_data_new(mdd_node_data_t *obj,
         char_array_t *reference, char_array_t *note);
+
+void mdd_node_type_code_block_data_new(mdd_node_data_t *obj, const char *lang);
 
 // Context data during parse.
 typedef struct mdd_data_tag {

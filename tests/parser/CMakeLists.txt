@@ -75,6 +75,11 @@ add_executable(test_block_quote
     test_utils.h test_utils.c)
 target_link_libraries(test_block_quote PRIVATE markdowndown)
 
+add_executable(test_fenced_code_block
+    test_fenced_code_block.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_fenced_code_block PRIVATE markdowndown)
+
 add_test(NAME test_document
     COMMAND $<TARGET_FILE:test_document>)
 add_test(NAME test_front_matter
@@ -105,3 +110,5 @@ add_test(NAME test_mark
     COMMAND $<TARGET_FILE:test_mark>)
 add_test(NAME test_block_quote
     COMMAND $<TARGET_FILE:test_block_quote>)
+add_test(NAME test_fenced_code_block
+    COMMAND $<TARGET_FILE:test_fenced_code_block>)
