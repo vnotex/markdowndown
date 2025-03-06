@@ -5,24 +5,28 @@
 %header {
 #include "data.h"
 
-#define PCC_AST_MANAGER_CUSTOM_DATA_DEFINED
-typedef mdd_data_t pcc_ast_manager_custom_data_t;
+// Do not capture the string for each node by default.
+#define MDDI_AST_NODE_STRING_CAPTURING_DISABLED
 
-#define PCC_AST_NODE_CUSTOM_DATA_DEFINED
-typedef mdd_node_data_t pcc_ast_node_custom_data_t;
+#define MDDI_AST_MANAGER_CUSTOM_DATA_DEFINED
+typedef mdd_data_t mddi_ast_manager_custom_data_t;
+
+#define MDDI_AST_NODE_CUSTOM_DATA_DEFINED
+typedef mdd_node_data_t mddi_ast_node_custom_data_t;
 }
 
 %import "code/pcc_ast.peg"
 
 # Output data type as `$$`.
-%value "pcc_ast_node_t *"
+%value "mddi_ast_node_t *"
 # User-defined data type passed to `pcc_create`.
-%auxil "pcc_ast_manager_t *"
+%auxil "mddi_ast_manager_t *"
 
 # Copied verbatim to the C source file before the generated parser implementation code.
 %source {
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 
 #include "utils.h"
 
@@ -204,7 +208,7 @@ mark <- '==' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '=='
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '=='
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -227,9 +231,9 @@ inline_equation <- (inline_equation_single / inline_equation_multiple)
         $$ = mdd_node_create_0(MDD_NODE_TYPE_INLINE_EQUATION, $0s, $0e);
     }
 
-inline_equation_single <- '$' &{ inline_equation_pre(ctx) } !'$' !'\\' nonspace_char '$' ![0-9]
+inline_equation_single <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' !'\\' nonspace_char '$' ![0-9]
 
-inline_equation_multiple <- '$' &{ inline_equation_pre(ctx) } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ inline_equation_post(ctx) } ![0-9]
+inline_equation_multiple <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ @@ = inline_equation_post(pcc_ctx); } ![0-9]
 
 ticks1 <- '`' !'`'
 ticks2 <- '``' !'`'
@@ -340,7 +344,7 @@ auto_link <-
 image <- '!' (e:explicit_link / e:explicit_link_size / e:reference_link)
     {
         assert(e);
-        assert(e->type == PCC_AST_NODE_TYPE_VARIADIC);
+        assert(e->type == MDDI_AST_NODE_TYPE_VARIADIC);
         $$ = e;
         mdd_node_data_assign(&$$->custom, MDD_NODE_TYPE_IMAGE, $0s, $0e);
     }
@@ -418,12 +422,14 @@ size <-
     / '=' < [0-9]+ > 'x'
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SIZE, $0s, $0e);
-        mdd_node_type_size_data_new(&$$->custom, atoi($3), -1);
+        // FIXME
+        mdd_node_type_size_data_new(&$$->custom, atoi(pcc_capture__3), -1);
     }
     / '=x' < [0-9]+ >
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_LINK_SIZE, $0s, $0e);
-        mdd_node_type_size_data_new(&$$->custom, -1, atoi($4));
+        // FIXME
+        mdd_node_type_size_data_new(&$$->custom, -1, atoi(pcc_capture__4));
     }
 
 explicit_link <- l:label '(' space s:source space_newline t:title? space ')'
@@ -534,7 +540,7 @@ strike <- '~~' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '~~'
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '~~'
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -552,7 +558,7 @@ strong_star <- '**' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '**'
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '**'
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -565,7 +571,7 @@ strong_ul <- '__' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '__'
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '__'
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -583,7 +589,7 @@ emph_star <- '*' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '*'
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '*'
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -596,7 +602,7 @@ emph_ul <- '_' !whitespace
         {
             mdd_node_append_child($$, e);
         }
-    )+ &{ look_back_nonspace(ctx) } '_'
+    )+ &{ @@ = look_back_nonspace(pcc_ctx); } '_'
     {
         mdd_node_data_set_range(&$$->custom, $0s, $0e);
     }
@@ -670,29 +676,29 @@ html_block_script <- html_block_script_open (!html_block_script_close .)* html_b
 ######
 
 %import "char/ascii_character_group.peg"
-%import "unicode_general_category_fix.peg"
+%import "char/unicode_general_category.peg"
 
 # End of the rules. All codes below will be copied to the C source file.
 %%
 
-void pcc_ast_manager_custom_data__initialize(pcc_ast_manager_custom_data_t *obj) {
+void mddi_ast_manager_custom_data__initialize(mddi_ast_manager_custom_data_t *obj) {
     mdd_data_initialize(obj);
 }
 
-void pcc_ast_manager_custom_data__finalize(pcc_ast_manager_custom_data_t *obj) {
+void mddi_ast_manager_custom_data__finalize(mddi_ast_manager_custom_data_t *obj) {
     mdd_data_finalize(obj);
 }
 
-void pcc_ast_node_custom_data__initialize(pcc_ast_node_custom_data_t *obj) {
+void mddi_ast_node_custom_data__initialize(mddi_ast_node_custom_data_t *obj) {
     mdd_node_data_initialize(obj);
 }
 
-void pcc_ast_node_custom_data__finalize(pcc_ast_node_custom_data_t *obj) {
+void mddi_ast_node_custom_data__finalize(mddi_ast_node_custom_data_t *obj) {
     mdd_node_data_finalize(obj);
 }
 
 int look_back_nonspace(mddi_context_t *ctx) {
-    const char *buf = ctx->buffer.buf + ctx->cur;
+    const char *buf = ctx->buffer.p + ctx->cur;
     if (ctx->cur == 0) {
         return 1;
     }
@@ -704,7 +710,7 @@ int look_back_nonspace(mddi_context_t *ctx) {
 }
 
 int inline_equation_pre(mddi_context_t *ctx) {
-    const char *buf = ctx->buffer.buf + ctx->cur;
+    const char *buf = ctx->buffer.p + ctx->cur;
     assert(ctx->cur > 0);
     assert(*(buf - 1) == '$');
     if (ctx->cur < 2) {
@@ -718,7 +724,7 @@ int inline_equation_pre(mddi_context_t *ctx) {
 }
 
 int inline_equation_post(mddi_context_t *ctx) {
-    const char *buf = ctx->buffer.buf + ctx->cur;
+    const char *buf = ctx->buffer.p + ctx->cur;
     assert(ctx->cur >= 2);
     const unsigned char ch = *(buf - 2);
     if (ch != ' ' && ch != '\t' && ch != '\\') {

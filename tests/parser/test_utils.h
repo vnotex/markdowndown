@@ -5,7 +5,7 @@
 
 #include "markdowndown.h"
 
-int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len);
+int dump_ast(const mddi_ast_node_t *obj, int depth, char *buf, size_t len);
 
 int test_ast(const char *input, const char *expected_ast);
 

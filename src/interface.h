@@ -5,8 +5,8 @@
 
 // Parse |buf| with length |len|.
 // Should call |mdd_clear(ast)| after the use of the AST.
-pcc_ast_node_t *mdd_parse(pcc_ast_manager_t *mgr, const unsigned char *buf, size_t len);
+mddi_ast_node_t *mdd_parse(mddi_ast_manager_t *mgr, const unsigned char *buf, size_t len);
 
-void mdd_clear(pcc_ast_manager_t *mgr, pcc_ast_node_t *ast);
+void mdd_clear(mddi_ast_manager_t *mgr, mddi_ast_node_t *ast);
 
 #endif

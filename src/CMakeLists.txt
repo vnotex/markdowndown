@@ -19,7 +19,7 @@ if(MDD_GENERATE_PEG)
         OUTPUT markdowndown.h markdowndown.c
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "${CMAKE_CURRENT_SOURCE_DIR}/markdowndown.peg" "${CMAKE_CURRENT_BINARY_DIR}"
-        COMMAND "${PACKCC_EXECUTABLE}" -I "${CMAKE_SOURCE_DIR}/import" -I "${PACKCC_IMPORT_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/markdowndown.peg"
+        COMMAND "${PACKCC_EXECUTABLE}" -I "${PACKCC_IMPORT_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/markdowndown.peg"
         DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/markdowndown.peg
         VERBATIM)
 endif()

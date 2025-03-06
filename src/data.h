@@ -102,7 +102,9 @@ typedef union mdd_node_type_data_tag {
 void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj);
 
 typedef struct mdd_node_data_tag {
+    // TODO: use the built-in label of AST node.
     mdd_node_type_t type;
+    // TODO: use the built-in range of AST node.
     range_t range;
     // Data for specific type.
     mdd_node_type_data_t *type_data;

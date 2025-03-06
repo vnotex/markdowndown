@@ -21,7 +21,7 @@
         } \
     } while (0)
 
-int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
+int dump_ast(const mddi_ast_node_t *obj, int depth, char *buf, size_t len) {
     const char *ast_node_type_strs[] = {"nul", "una", "bin", "ter", "var"};
     size_t idx = 0;
     int total = 0;
@@ -37,21 +37,21 @@ int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
         add_and_check_buf();
 
         switch (obj->type) {
-        case PCC_AST_NODE_TYPE_NULLARY:
+        case MDDI_AST_NODE_TYPE_NULLARY:
             break;
-        case PCC_AST_NODE_TYPE_UNARY: {
+        case MDDI_AST_NODE_TYPE_UNARY: {
             ret = dump_ast(obj->data.unary.node, depth + 1, buf + total, len - total);
             add_and_check_buf();
             break;
         }
-        case PCC_AST_NODE_TYPE_BINARY: {
+        case MDDI_AST_NODE_TYPE_BINARY: {
             ret = dump_ast(obj->data.binary.node[0], depth + 1, buf + total, len - total);
             add_and_check_buf();
             ret = dump_ast(obj->data.binary.node[1], depth + 1, buf + total, len - total);
             add_and_check_buf();
             break;
         }
-        case PCC_AST_NODE_TYPE_TERNARY: {
+        case MDDI_AST_NODE_TYPE_TERNARY: {
             ret = dump_ast(obj->data.ternary.node[0], depth + 1, buf + total, len - total);
             add_and_check_buf();
             ret = dump_ast(obj->data.ternary.node[1], depth + 1, buf + total, len - total);
@@ -60,7 +60,7 @@ int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
             add_and_check_buf();
             break;
         }
-        case PCC_AST_NODE_TYPE_VARIADIC: {
+        case MDDI_AST_NODE_TYPE_VARIADIC: {
             {
                 for (size_t i = 0; i < obj->data.variadic.len; ++i) {
                     ret = dump_ast(obj->data.variadic.node[i], depth + 1, buf + total, len - total);
@@ -83,9 +83,9 @@ int dump_ast(const pcc_ast_node_t *obj, int depth, char *buf, size_t len) {
 int test_ast(const char *input, const char *expected_ast) {
     int passed = 0;
     char buffer[BUF_LEN + 1] = { 0 };
-    pcc_ast_manager_t mgr;
+    mddi_ast_manager_t mgr;
 
-    pcc_ast_node_t *ast = mdd_parse(&mgr, (const unsigned char *)input, strlen(input));
+    mddi_ast_node_t *ast = mdd_parse(&mgr, (const unsigned char *)input, strlen(input));
     if (ast) {
         int ret = dump_ast(ast, 0, buffer, BUF_LEN);
         if (ret > 0) {
