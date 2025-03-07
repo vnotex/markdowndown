@@ -31,6 +31,6 @@ int main() {
         "```\n",
         "var: Document[0,11)\n"
         "  var: BlockList[0,11)\n"
-        "    var: Plain[0,11)\n");
+        "    nul: FencedCodeBlock[0,11){abc}\n");
    return 0;
 }

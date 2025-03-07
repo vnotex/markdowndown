@@ -64,6 +64,19 @@ void mdd_node_type_data_finalize(mdd_node_type_t type, mdd_node_type_data_t *obj
     case MDD_NODE_TYPE_LINK_SOURCE:
         // Fallthrough.
     case MDD_NODE_TYPE_LINK_TITLE:
+        // Fallthrough.
+        // Headings.
+    case MDD_NODE_TYPE_H1:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H2:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H3:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H4:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H5:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H6:
         mdd_node_type_label_data_finalize(&obj->label_data);
         break;
     case MDD_NODE_TYPE_LINK_SIZE:
@@ -220,13 +233,19 @@ const char *mdd_node_type_to_string(mdd_node_type_t type) {
     case MDD_NODE_TYPE_NOTE: return "Note";
     case MDD_NODE_TYPE_NOTE_BLOCK: return "NoteBlock";
     case MDD_NODE_TYPE_CODE: return "Code";
-    case MDD_NODE_TYPE_INLINE_EQUATION: return "InlineEquation";
+    case MDD_NODE_TYPE_INLINE_FORMULA: return "InlineFormula";
+    case MDD_NODE_TYPE_DISPLAY_FORMULA: return "DisplayFormula";
     case MDD_NODE_TYPE_MARK: return "Mark";
     case MDD_NODE_TYPE_BLOCK_QUOTE: return "BlockQuote";
     case MDD_NODE_TYPE_FENCED_CODE_BLOCK: return "FencedCodeBlock";
+    case MDD_NODE_TYPE_HORIZONTAL_RULE: return "HorizontalRule";
     case MDD_NODE_TYPE_DUMMY: return "Dummy";
     case MDD_NODE_TYPE_H1: return "H1";
     case MDD_NODE_TYPE_H2: return "H2";
+    case MDD_NODE_TYPE_H3: return "H3";
+    case MDD_NODE_TYPE_H4: return "H4";
+    case MDD_NODE_TYPE_H5: return "H5";
+    case MDD_NODE_TYPE_H6: return "H6";
     }
 }
 
@@ -276,6 +295,22 @@ int mdd_node_type_data_dump(char *buf, size_t len, const mdd_node_data_t *obj) {
         const mdd_node_type_code_block_data_t *data = &obj->type_data->code_block_data;
         return snprintf(buf, len, "{%s}",
                 mdd_char_array_to_string(&data->lang));
+        break;
+    }
+    case MDD_NODE_TYPE_H1:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H2:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H3:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H4:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H5:
+        // Fallthrough.
+    case MDD_NODE_TYPE_H6: {
+        const mdd_node_type_label_data_t *data = &obj->type_data->label_data;
+        return snprintf(buf, len, "{%s}",
+                mdd_char_array_to_string(&data->text));
         break;
     }
     default:

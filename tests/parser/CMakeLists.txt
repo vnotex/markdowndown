@@ -60,10 +60,10 @@ add_executable(test_code
     test_utils.h test_utils.c)
 target_link_libraries(test_code PRIVATE markdowndown)
 
-add_executable(test_math
-    test_math.c
+add_executable(test_inline_formula
+    test_inline_formula.c
     test_utils.h test_utils.c)
-target_link_libraries(test_math PRIVATE markdowndown)
+target_link_libraries(test_inline_formula PRIVATE markdowndown)
 
 add_executable(test_mark
     test_mark.c
@@ -79,6 +79,21 @@ add_executable(test_fenced_code_block
     test_fenced_code_block.c
     test_utils.h test_utils.c)
 target_link_libraries(test_fenced_code_block PRIVATE markdowndown)
+
+add_executable(test_display_formula
+    test_display_formula.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_display_formula PRIVATE markdowndown)
+
+add_executable(test_horizontal_rule
+    test_horizontal_rule.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_horizontal_rule PRIVATE markdowndown)
+
+add_executable(test_heading
+    test_heading.c
+    test_utils.h test_utils.c)
+target_link_libraries(test_heading PRIVATE markdowndown)
 
 add_test(NAME test_document
     COMMAND $<TARGET_FILE:test_document>)
@@ -104,11 +119,17 @@ add_test(NAME test_note
     COMMAND $<TARGET_FILE:test_note>)
 add_test(NAME test_code
     COMMAND $<TARGET_FILE:test_code>)
-add_test(NAME test_math
-    COMMAND $<TARGET_FILE:test_math>)
+add_test(NAME test_inline_formula
+    COMMAND $<TARGET_FILE:test_inline_formula>)
 add_test(NAME test_mark
     COMMAND $<TARGET_FILE:test_mark>)
 add_test(NAME test_block_quote
     COMMAND $<TARGET_FILE:test_block_quote>)
 add_test(NAME test_fenced_code_block
     COMMAND $<TARGET_FILE:test_fenced_code_block>)
+add_test(NAME test_display_formula
+    COMMAND $<TARGET_FILE:test_display_formula>)
+add_test(NAME test_horizontal_rule
+    COMMAND $<TARGET_FILE:test_horizontal_rule>)
+add_test(NAME test_heading
+    COMMAND $<TARGET_FILE:test_heading>)

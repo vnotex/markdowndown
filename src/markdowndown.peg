@@ -45,8 +45,8 @@ static const char *dbg_str[] = { "Evaluating", "Matched", "Abandoned" };
 
 int look_back_nonspace(mddi_context_t *ctx);
 
-int inline_equation_pre(mddi_context_t *ctx);
-int inline_equation_post(mddi_context_t *ctx);
+int inline_formula_pre(mddi_context_t *ctx);
+int inline_formula_post(mddi_context_t *ctx);
 
 int look_back_one_char(mddi_context_t *ctx, char *excludes, size_t len, int positive);
 
@@ -86,31 +86,121 @@ block <-
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_BLANK_LINE, $0s, $0e);
     }
-    / (e:block_quote / e:verbatim / e:fenced_code_block / e:note / e:reference / e:plain)
+    / (e:block_quote
+       / e:verbatim
+       / e:fenced_code_block
+       / e:display_formula
+       / e:note
+       / e:reference
+       / e:horizontal_rule
+       / e:heading
+       / e:plain)
     {
         $$ = e;
     }
+
+heading <- (e:setext_heading / e:atx_heading) { $$ = e; }
+
+setext_heading <- (e:setext_heading1 / e:setext_heading2) { $$ = e; }
+
+setext_bottom1 <- '='+ new_line
+
+setext_bottom2 <- '-'+ new_line
+
+setext_heading1 <- &(line setext_bottom1)
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_H1, $0s, $0e);
+    }
+    <(!end_line e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+> space new_line setext_bottom1
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $1);
+    }
+
+setext_heading2 <- &(line setext_bottom2)
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_H2, $0s, $0e);
+    }
+    <(!end_line e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+> space new_line setext_bottom2
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $1);
+    }
+
+atx_heading <- space <atx_heading_start> spaces
+    {
+        $$ = mdd_node_create_v(MDD_NODE_TYPE_H1 + strlen($1) - 1, $0s, $0e);
+    }
+    <(!new_line !(space '#'* space new_line) e:inline
+        {
+            mdd_node_append_child($$, e);
+        }
+    )+> (space '#'* space)? new_line
+    {
+        mdd_node_data_set_range(&$$->custom, $0s, $0e);
+        mdd_node_type_label_data_new(&$$->custom, $2);
+    }
+
+atx_heading_start <- '######' / '#####' / '####' / '###' / '##' / '#'
+
+horizontal_rule <- nonindent_space
+    ('*' space '*' space '*' (space '*')*
+     / '_' space '_' space '_' (space '_')*
+     / '-' space '-' space '-' (space '-')*) space new_line
+     {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_HORIZONTAL_RULE, $0s, $0e);
+     }
+
+display_formula <- (display_formula_dollar / display_formula_raw)
+    {
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_DISPLAY_FORMULA, $0s, $0e);
+    }
+
+display_formula_dollar <- nonindent_space '$$' (!'$$' .)* '$$' space formula_number? space new_line
+
+formula_number <- '(' (!')' !'$' !new_line .)+ ')'
+
+%marker @dfr_start_cnt
+display_formula_raw <- nonindent_space display_formula_raw_start &{ @dfr_start_cnt = 1; } space_newline
+    ((display_formula_raw_start &{ ++@dfr_start_cnt; })
+     / (&{ @@ = @dfr_start_cnt > 1; } display_formula_raw_end &{ --@dfr_start_cnt; })
+     / (!display_formula_raw_end !display_formula_raw_start !(new_line new_line+) .))*
+    &{ @@ = @dfr_start_cnt == 1; } display_formula_raw_end &{ --@dfr_start_cnt; } space formula_number? space new_line
+
+display_formula_raw_start <- '\\begin' '{' display_formula_raw_mark '}'
+
+display_formula_raw_end <- '\\end' '{' display_formula_raw_mark '}'
+
+display_formula_raw_mark <- (!'{' !'}' nonspace_char)+
 
 fenced_code_block <- (e:fenced_code_block_tick / e:fenced_code_block_tidle)
     {
         $$ = e;
     }
 
-fenced_code_block_tick_close <- '```' space (new_line / end_of_file)
+fenced_code_block_tick_end <- '```' space (new_line / end_of_file)
 
 fenced_code_block_tick <- '```' space <(!new_line !'`' .)*> new_line
-    (!fenced_code_block_tick_close (!new_line .)* new_line)*
-    fenced_code_block_tick_close
+    (!fenced_code_block_tick_end (!new_line .)* new_line)*
+    fenced_code_block_tick_end
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_FENCED_CODE_BLOCK, $0s, $0e);
         mdd_node_type_code_block_data_new(&$$->custom, $1);
     }
 
-fenced_code_block_tidle_close <- '~~~' space (new_line / end_of_file)
+fenced_code_block_tidle_end <- '~~~' space (new_line / end_of_file)
 
 fenced_code_block_tidle <- '~~~' space <(!new_line !'~' .)*> new_line
-    (!fenced_code_block_tidle_close (!new_line .)* new_line)*
-    fenced_code_block_tidle_close
+    (!fenced_code_block_tidle_end (!new_line .)* new_line)*
+    fenced_code_block_tidle_end
     {
         $$ = mdd_node_create_0(MDD_NODE_TYPE_FENCED_CODE_BLOCK, $0s, $0e);
         mdd_node_type_code_block_data_new(&$$->custom, $1);
@@ -216,7 +306,7 @@ inline <-
      / e:note_reference
      / e:inline_note
      / e:code
-     / e:inline_equation
+     / e:inline_formula
      / e:mark_html
      / e:raw_html
      / e:entity
@@ -253,14 +343,14 @@ mark_html_open <- '<' space_newline ('mark' / 'MARK') space_newline html_attribu
 
 mark_html_close <- '<' space_newline '/' ('mark' / 'MARK') space_newline '>'
 
-inline_equation <- (inline_equation_single / inline_equation_multiple)
+inline_formula <- (inline_formula_single / inline_formula_multiple)
     {
-        $$ = mdd_node_create_0(MDD_NODE_TYPE_INLINE_EQUATION, $0s, $0e);
+        $$ = mdd_node_create_0(MDD_NODE_TYPE_INLINE_FORMULA, $0s, $0e);
     }
 
-inline_equation_single <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' !'\\' nonspace_char '$' ![0-9]
+inline_formula_single <- '$' &{ @@ = inline_formula_pre(pcc_ctx); } !'$' !'\\' nonspace_char '$' ![0-9]
 
-inline_equation_multiple <- '$' &{ @@ = inline_equation_pre(pcc_ctx); } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ @@ = inline_equation_post(pcc_ctx); } ![0-9]
+inline_formula_multiple <- '$' &{ @@ = inline_formula_pre(pcc_ctx); } !'$' nonspace_char (!'$' !new_line .)+ '$' &{ @@ = inline_formula_post(pcc_ctx); } ![0-9]
 
 # Define all ticks rules together
 ticks1 <- '`' !'`'
@@ -679,8 +769,8 @@ end_line <- line_break / terminal_end_line / normal_end_line
 
 line_break <- '  ' normal_end_line
 
-normal_end_line <- space new_line !blank_line !'>'
-    !(line ('='+ / '-'+) new_line)
+normal_end_line <- space new_line !blank_line !'>' !atx_heading_start
+    !(line ('='+ / '-'+) new_line) !'```' !'~~~' !'$$'
 
 terminal_end_line <- space new_line end_of_file
 
@@ -742,7 +832,7 @@ int look_back_one_char(mddi_context_t *ctx, char *chars, size_t len, int positiv
     return !positive;
 }
 
-int inline_equation_pre(mddi_context_t *ctx) {
+int inline_formula_pre(mddi_context_t *ctx) {
     const char *buf = ctx->buffer.p + ctx->cur;
     assert(ctx->cur > 0);
     assert(*(buf - 1) == '$');
@@ -756,7 +846,7 @@ int inline_equation_pre(mddi_context_t *ctx) {
     return 0;
 }
 
-int inline_equation_post(mddi_context_t *ctx) {
+int inline_formula_post(mddi_context_t *ctx) {
     const char *buf = ctx->buffer.p + ctx->cur;
     assert(ctx->cur >= 2);
     const unsigned char ch = *(buf - 2);
